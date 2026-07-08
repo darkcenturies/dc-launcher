@@ -1,6 +1,7 @@
 -- ============================================================
--- Dark Centuries — Zone Control Warfare
--- AzerothCore + Eluna
+-- World of Warcraft: Dark Centuries
+-- Zone Control Warfare — every zone of Azeroth belongs to a faction
+-- AzerothCore + Eluna (server side)
 -- ============================================================
 
 local DC = {}
@@ -9,30 +10,75 @@ local DC = {}
 DC.CAPTURE_PER_KILL  = 6      -- progress points per PvP kill
 DC.DECAY_PER_TICK    = 1      -- points back toward 50 per tick (when no fighting)
 DC.DECAY_TICK_MS     = 30000  -- 30 seconds
-DC.CONTROL_THRESHOLD = 30     -- <30 = Alliance control, >70 = Horde control
-DC.XP_BONUS_PCT      = 0.25   -- 25% bonus XP in controlled zones
+DC.CONTROL_THRESHOLD = 30     -- <=30 = Alliance control, >=70 = Horde control
+DC.XP_BONUS_PCT      = 0.25   -- 25% bonus XP in zones your faction controls
 
--- Faction constants (matches GetTeam(): 0=Alliance, 1=Horde)
-DC.A = 1  -- Alliance faction ID (internal)
-DC.H = 2  -- Horde faction ID (internal)
-DC.N = 0  -- Neutral
+-- Faction constants
+DC.A = 1  -- Alliance
+DC.H = 2  -- Horde
+DC.N = 0  -- Neutral / contested
 
--- ── Contested zones ─────────────────────────────────────────
--- [zone_id] = { name }
+-- ── The world map (GTA:SA style — every zone has an owner) ──
+-- [area_id] = { name, locked = DC.A/DC.H (home turf, can never flip) }
 DC.ZONES = {
-    [267] = { name = "Hillsbrad Foothills" },
-    [45] = { name = "Arathi Highlands" },
-    [33] = { name = "Stranglethorn Vale" },
-    [36] = { name = "Alterac Mountains" },
-    [139] = { name = "Eastern Plaguelands" },
-    [28] = { name = "Western Plaguelands" },
+    -- Eastern Kingdoms
+    [1]    = { name = "Dun Morogh",            locked = DC.A },
+    [3]    = { name = "Badlands" },
+    [4]    = { name = "Blasted Lands" },
+    [8]    = { name = "Swamp of Sorrows" },
+    [10]   = { name = "Duskwood" },
+    [11]   = { name = "Wetlands" },
+    [12]   = { name = "Elwynn Forest",         locked = DC.A },
+    [28]   = { name = "Western Plaguelands" },
+    [33]   = { name = "Stranglethorn Vale" },
+    [36]   = { name = "Alterac Mountains" },
+    [38]   = { name = "Loch Modan" },
+    [40]   = { name = "Westfall" },
+    [41]   = { name = "Deadwind Pass" },
+    [44]   = { name = "Redridge Mountains" },
+    [45]   = { name = "Arathi Highlands" },
+    [46]   = { name = "Burning Steppes" },
+    [47]   = { name = "The Hinterlands" },
+    [51]   = { name = "Searing Gorge" },
+    [85]   = { name = "Tirisfal Glades",       locked = DC.H },
+    [130]  = { name = "Silverpine Forest" },
+    [139]  = { name = "Eastern Plaguelands" },
+    [267]  = { name = "Hillsbrad Foothills" },
+    [1497] = { name = "Undercity",             locked = DC.H },
+    [1519] = { name = "Stormwind City",        locked = DC.A },
+    [1537] = { name = "Ironforge",             locked = DC.A },
+    [3430] = { name = "Eversong Woods",        locked = DC.H },
+    [3433] = { name = "Ghostlands",            locked = DC.H },
+    [3487] = { name = "Silvermoon City",       locked = DC.H },
+    -- Kalimdor
+    [14]   = { name = "Durotar",               locked = DC.H },
+    [15]   = { name = "Dustwallow Marsh" },
+    [16]   = { name = "Azshara" },
+    [17]   = { name = "The Barrens" },
+    [141]  = { name = "Teldrassil",            locked = DC.A },
+    [148]  = { name = "Darkshore" },
+    [215]  = { name = "Mulgore",               locked = DC.H },
+    [331]  = { name = "Ashenvale" },
+    [357]  = { name = "Feralas" },
+    [361]  = { name = "Felwood" },
+    [400]  = { name = "Thousand Needles" },
+    [405]  = { name = "Desolace" },
+    [406]  = { name = "Stonetalon Mountains" },
+    [440]  = { name = "Tanaris" },
+    [490]  = { name = "Un'Goro Crater" },
+    [493]  = { name = "Moonglade" },
+    [618]  = { name = "Winterspring" },
     [1377] = { name = "Silithus" },
-    [3] = { name = "Badlands" },
-    [46] = { name = "Burning Steppes" },
+    [1637] = { name = "Orgrimmar",             locked = DC.H },
+    [1638] = { name = "Thunder Bluff",         locked = DC.H },
+    [1657] = { name = "Darnassus",             locked = DC.A },
+    [3524] = { name = "Azuremyst Isle",        locked = DC.A },
+    [3525] = { name = "Bloodmyst Isle",        locked = DC.A },
+    [3557] = { name = "The Exodar",            locked = DC.A },
 }
 
 -- ── State ────────────────────────────────────────────────────
--- [zone_id] = { progress=50, faction=0 }
+-- [zone_id] = { progress = 0-100 (0=full Alliance, 100=full Horde), faction, flips }
 DC.state = {}
 
 -- ── Helpers ──────────────────────────────────────────────────
@@ -41,6 +87,8 @@ local function PlayerFaction(player)
 end
 
 local function ZoneFaction(zoneId)
+    local z = DC.ZONES[zoneId]
+    if z and z.locked then return z.locked end
     local s = DC.state[zoneId]
     if not s then return DC.N end
     if s.progress <= DC.CONTROL_THRESHOLD then return DC.A
@@ -63,46 +111,56 @@ end
 -- ── Persistence ──────────────────────────────────────────────
 local function SaveZone(zoneId)
     local s = DC.state[zoneId]
+    local name = DC.ZONES[zoneId] and DC.ZONES[zoneId].name or ""
+    -- Upsert so zones missing from the seed data still persist
     WorldDBExecute(string.format(
-        "UPDATE dc_zone_control SET capture_progress=%d, controlling_faction=%d, flip_count=%d WHERE zone_id=%d",
-        s.progress, s.faction, s.flips, zoneId))
+        "INSERT INTO dc_zone_control (zone_id, zone_name, capture_progress, controlling_faction, flip_count) " ..
+        "VALUES (%d, '%s', %d, %d, %d) " ..
+        "ON DUPLICATE KEY UPDATE capture_progress=%d, controlling_faction=%d, flip_count=%d",
+        zoneId, name:gsub("'", "''"), s.progress, s.faction, s.flips,
+        s.progress, s.faction, s.flips))
 end
 
 local function LoadState()
     local result = WorldDBQuery("SELECT zone_id, capture_progress, controlling_faction, flip_count FROM dc_zone_control")
-    if not result then return end
-    repeat
-        local zid  = result:GetUInt32(0)
-        local prog = result:GetUInt32(1)
-        local fac  = result:GetUInt32(2)
-        local flps = result:GetUInt32(3)
-        DC.state[zid] = { progress = prog, faction = fac, flips = flps }
-    until not result:NextRow()
-    -- Fill any missing zones with default neutral state
-    for zid, _ in pairs(DC.ZONES) do
+    if result then
+        repeat
+            local zid  = result:GetUInt32(0)
+            local prog = result:GetUInt32(1)
+            local fac  = result:GetUInt32(2)
+            local flps = result:GetUInt32(3)
+            DC.state[zid] = { progress = prog, faction = fac, flips = flps }
+        until not result:NextRow()
+    end
+    -- Fill missing zones; force locked home zones to their owner
+    for zid, z in pairs(DC.ZONES) do
         if not DC.state[zid] then
             DC.state[zid] = { progress = 50, faction = DC.N, flips = 0 }
+        end
+        if z.locked then
+            DC.state[zid].progress = (z.locked == DC.A) and 0 or 100
+            DC.state[zid].faction  = z.locked
         end
     end
 end
 
--- ── Buff management ──────────────────────────────────────────
--- We apply/remove an Eluna-managed XP bonus rather than a spell aura.
--- The server sends the player's zone state via addon message so the
--- client can display the coloured overlay. No server-side aura needed.
-
+-- ── Client sync ──────────────────────────────────────────────
 local function NotifyPlayer(player, zoneId)
-    local f = ZoneFaction(zoneId)
     local s = DC.state[zoneId]
-    local zoneName = DC.ZONES[zoneId] and DC.ZONES[zoneId].name or "Unknown"
-    local msg = string.format("ZONE|%d|%d|%d", zoneId, f, s.progress)
+    if not s then return end
+    local msg = string.format("ZONE|%d|%d|%d", zoneId, ZoneFaction(zoneId), s.progress)
     player:SendAddonMessage("DarkCenturies", msg, 7, player)
 end
 
 local function BroadcastZoneState(zoneId)
-    local players = GetPlayersInWorld()
-    for _, p in ipairs(players) do
+    for _, p in ipairs(GetPlayersInWorld()) do
         NotifyPlayer(p, zoneId)
+    end
+end
+
+local function SendFullState(player)
+    for zoneId, _ in pairs(DC.ZONES) do
+        NotifyPlayer(player, zoneId)
     end
 end
 
@@ -113,34 +171,31 @@ local function OnZoneFlip(zoneId, newFaction, oldFaction)
     s.faction   = newFaction
     s.flips     = s.flips + 1
 
-    -- Server-wide announcement
     SendWorldMessage(string.format(
         "|cffFFD700[Dark Centuries]|r %s%s|r has claimed %s! (captured %d times)",
         FactionColor(newFaction), FactionName(newFaction), zname, s.flips))
-
 
     SaveZone(zoneId)
     BroadcastZoneState(zoneId)
 end
 
--- ── PvP kill handler ─────────────────────────────────────────
+-- ── PvP kill capture ─────────────────────────────────────────
 local function OnKillPlayer(event, killer, killed)
     if not killer or not killed then return end
     if killer:GetGUIDLow() == killed:GetGUIDLow() then return end
 
     local zoneId = killer:GetZoneId()
-    if not DC.ZONES[zoneId] then return end
+    local zone = DC.ZONES[zoneId]
+    if not zone or zone.locked then return end
 
     local killerFac = PlayerFaction(killer)
-    local killedFac = PlayerFaction(killed)
-    if killerFac == killedFac then return end
+    if killerFac == PlayerFaction(killed) then return end
 
     local s = DC.state[zoneId]
     if not s then return end
 
     local oldFac = ZoneFaction(zoneId)
 
-    -- Push meter toward killer's faction
     if killerFac == DC.H then
         s.progress = math.min(100, s.progress + DC.CAPTURE_PER_KILL)
     else
@@ -149,27 +204,29 @@ local function OnKillPlayer(event, killer, killed)
 
     local newFac = ZoneFaction(zoneId)
 
-    -- Feedback to killer
-    local bar = string.rep("|cff4477FF█|r", math.floor((100 - s.progress) / 10))
-              ..string.rep("|cffFFCC00░|r", 10 - math.floor((100 - s.progress) / 10) - math.floor(s.progress / 10))
-              ..string.rep("|cffFF4444█|r", math.floor(s.progress / 10))
+    local aPct = 100 - s.progress
+    local blueBlocks   = math.floor(aPct / 10)
+    local redBlocks    = math.floor(s.progress / 10)
+    local yellowBlocks = 10 - blueBlocks - redBlocks
+    local bar = string.rep("|cff4477FF#|r", blueBlocks)
+              ..string.rep("|cffFFCC00-|r", yellowBlocks)
+              ..string.rep("|cffFF4444#|r", redBlocks)
     killer:SendBroadcastMessage(string.format(
-        "|cffFFD700[Dark Centuries]|r %s  [%s]  %d%%H / %d%%A",
-        DC.ZONES[zoneId].name, bar, s.progress, 100 - s.progress))
+        "|cffFFD700[Dark Centuries]|r %s  [%s]  A %d%% / H %d%%",
+        zone.name, bar, aPct, s.progress))
 
     if newFac ~= oldFac then
         OnZoneFlip(zoneId, newFac, oldFac)
     else
         SaveZone(zoneId)
-        -- Notify both players in zone of new progress
         NotifyPlayer(killer, zoneId)
         NotifyPlayer(killed, zoneId)
     end
 end
 
--- ── XP bonus ─────────────────────────────────────────────────
+-- ── XP bonus in controlled territory ─────────────────────────
 local function OnGiveXP(event, player, amount, victim)
-    if not victim then return end  -- only PvE kills
+    if not victim then return end  -- only kill XP
     local zoneId = player:GetZoneId()
     if not DC.ZONES[zoneId] then return end
     if ZoneFaction(zoneId) == PlayerFaction(player) then
@@ -179,60 +236,62 @@ end
 
 -- ── Zone change / login ──────────────────────────────────────
 local function OnUpdateZone(event, player, newZone, newArea)
-    if not DC.ZONES[newZone] then return end
+    local zone = DC.ZONES[newZone]
+    if not zone then return end
     NotifyPlayer(player, newZone)
 
-    local f = ZoneFaction(newZone)
+    local f  = ZoneFaction(newZone)
     local pf = PlayerFaction(player)
-    local zname = DC.ZONES[newZone].name
 
-    if f == DC.N then
+    if zone.locked then
+        if f == pf then
+            player:SendBroadcastMessage(string.format(
+                "|cffFFD700[Dark Centuries]|r %s is your faction's home territory. |cff00FF00+%d%% XP bonus active.|r",
+                zone.name, DC.XP_BONUS_PCT * 100))
+        else
+            player:SendBroadcastMessage(string.format(
+                "|cffFFD700[Dark Centuries]|r You have entered enemy home territory: %s. |cffFF4444Watch your back.|r",
+                zone.name))
+        end
+    elseif f == DC.N then
         player:SendBroadcastMessage(string.format(
             "|cffFFD700[Dark Centuries]|r %s is |cffFFCC00contested|r. Fight to claim it for your faction.",
-            zname))
+            zone.name))
     elseif f == pf then
         player:SendBroadcastMessage(string.format(
             "|cffFFD700[Dark Centuries]|r Your faction controls %s. |cff00FF00+%d%% XP bonus active.|r",
-            zname, DC.XP_BONUS_PCT * 100))
+            zone.name, DC.XP_BONUS_PCT * 100))
     else
         player:SendBroadcastMessage(string.format(
             "|cffFFD700[Dark Centuries]|r %s is held by the enemy. Reclaim it for your faction.",
-            zname))
+            zone.name))
     end
 end
 
 local function OnLogin(event, player)
-    -- Send full state of all zones on login
-    for zoneId, _ in pairs(DC.ZONES) do
-        if DC.state[zoneId] then
-            NotifyPlayer(player, zoneId)
-        end
-    end
+    SendFullState(player)
 end
 
 -- ── Decay tick ───────────────────────────────────────────────
--- Progress slowly drifts back to 50 (contested) when no PvP is happening
 local function DecayTick()
     for zoneId, s in pairs(DC.state) do
-        if not DC.ZONES[zoneId] then goto continue end
-        local oldFac = ZoneFaction(zoneId)
+        local zone = DC.ZONES[zoneId]
+        if zone and not zone.locked and s.progress ~= 50 then
+            local oldFac = ZoneFaction(zoneId)
 
-        if s.progress > 50 then
-            s.progress = math.max(50, s.progress - DC.DECAY_PER_TICK)
-        elseif s.progress < 50 then
-            s.progress = math.min(50, s.progress + DC.DECAY_PER_TICK)
-        else
-            goto continue
+            if s.progress > 50 then
+                s.progress = math.max(50, s.progress - DC.DECAY_PER_TICK)
+            else
+                s.progress = math.min(50, s.progress + DC.DECAY_PER_TICK)
+            end
+
+            local newFac = ZoneFaction(zoneId)
+            if newFac ~= oldFac then
+                OnZoneFlip(zoneId, newFac, oldFac)
+            else
+                SaveZone(zoneId)
+            end
         end
-
-        local newFac = ZoneFaction(zoneId)
-        if newFac ~= oldFac then
-            OnZoneFlip(zoneId, newFac, oldFac)
-        else
-            SaveZone(zoneId)
-        end
-
-        ::continue::
     end
 end
 
@@ -240,12 +299,16 @@ end
 LoadState()
 
 RegisterPlayerEvent(7,  OnKillPlayer)   -- PLAYER_EVENT_ON_KILL_PLAYER
-RegisterPlayerEvent(13, OnGiveXP)       -- PLAYER_EVENT_ON_GIVE_EXP  (return = new amount)
+RegisterPlayerEvent(13, OnGiveXP)       -- PLAYER_EVENT_ON_GIVE_EXP
 RegisterPlayerEvent(28, OnUpdateZone)   -- PLAYER_EVENT_ON_UPDATE_ZONE
-RegisterPlayerEvent(4,  OnLogin)        -- PLAYER_EVENT_ON_LOAD
+RegisterPlayerEvent(4,  OnLogin)        -- PLAYER_EVENT_ON_LOGIN
 
-CreateLuaEvent(DecayTick, DC.DECAY_TICK_MS, 0)  -- 0 = repeat forever
+CreateLuaEvent(DecayTick, DC.DECAY_TICK_MS, 0)
 
-local zoneCount = 0
-for _ in pairs(DC.ZONES) do zoneCount = zoneCount + 1 end
-print("[Dark Centuries] Zone control loaded — " .. zoneCount .. " zones active")
+local zoneCount, lockedCount = 0, 0
+for _, z in pairs(DC.ZONES) do
+    zoneCount = zoneCount + 1
+    if z.locked then lockedCount = lockedCount + 1 end
+end
+print(string.format("[Dark Centuries] World control loaded — %d zones (%d home, %d contestable)",
+    zoneCount, lockedCount, zoneCount - lockedCount))

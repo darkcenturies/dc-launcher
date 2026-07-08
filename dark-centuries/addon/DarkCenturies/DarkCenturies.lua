@@ -1,38 +1,28 @@
--- Dark Centuries client addon
--- Draws coloured zone overlays on the Azeroth world map
--- Receives zone state via addon messages from the server (Eluna)
+-- ============================================================
+-- World of Warcraft: Dark Centuries (client addon, WoW 3.3.5a)
+-- GTA:SA-style territory map: every zone of Azeroth is tinted
+-- by its controlling faction on the continent world maps.
+--
+-- Zone shapes come from the game's own hover-highlight art via
+-- UpdateMapHighlight(x, y), tinted with the faction color, so
+-- each zone is colored in its exact shape.
+-- ============================================================
 
 local DC = {}
 
--- Faction constants matching server side
-DC.N = 0  -- neutral / contested
+DC.N = 0  -- contested
 DC.A = 1  -- Alliance
 DC.H = 2  -- Horde
 
--- Zone state cache: [zoneId] = { faction=N/A/H, progress=0-100 }
+-- Server state cache: [zoneId] = { faction, progress (0=A, 100=H) }
 DC.zoneState = {}
 
--- ── Zone overlay regions ──────────────────────────────────────
--- Positions are fractions of the Azeroth overview map (1002x668 px)
--- { left, top, width, height } as 0-1 fractions
--- Eastern Kingdoms is the right ~40% of the map; Kalimdor the left ~40%
-DC.ZONE_REGIONS = {
-    [267]  = { 0.615, 0.335, 0.072, 0.060 },  -- Hillsbrad Foothills
-    [45]   = { 0.620, 0.265, 0.075, 0.058 },  -- Arathi Highlands
-    [33]   = { 0.600, 0.520, 0.058, 0.160 },  -- Stranglethorn Vale
-    [36]   = { 0.608, 0.295, 0.058, 0.038 },  -- Alterac Mountains
-    [139]  = { 0.655, 0.190, 0.090, 0.070 },  -- Eastern Plaguelands
-    [28]   = { 0.618, 0.210, 0.072, 0.062 },  -- Western Plaguelands
-    [1377] = { 0.165, 0.720, 0.060, 0.090 },  -- Silithus
-    [3]    = { 0.632, 0.430, 0.065, 0.050 },  -- Badlands
-    [46]   = { 0.625, 0.470, 0.065, 0.048 },  -- Burning Steppes
+DC.COLOR = {
+    [DC.N] = { r = 1.00, g = 0.80, b = 0.10 },  -- yellow  contested
+    [DC.A] = { r = 0.15, g = 0.40, b = 1.00 },  -- blue    Alliance
+    [DC.H] = { r = 1.00, g = 0.15, b = 0.15 },  -- red     Horde
 }
-
-DC.FACTION_COLOR = {
-    [DC.N] = { r=1.0, g=0.8, b=0.0, a=0.35 },  -- yellow (contested)
-    [DC.A] = { r=0.2, g=0.4, b=1.0, a=0.35 },  -- blue   (Alliance)
-    [DC.H] = { r=1.0, g=0.2, b=0.2, a=0.35 },  -- red    (Horde)
-}
+DC.ALPHA = 0.40
 
 DC.FACTION_TEXT = {
     [DC.N] = "|cffFFCC00Contested|r",
@@ -40,111 +30,194 @@ DC.FACTION_TEXT = {
     [DC.H] = "|cffFF4444Horde|r",
 }
 
--- ── Overlay frames ────────────────────────────────────────────
+-- ── Zone anchor points ────────────────────────────────────────
+-- [areaId] = { c = continent (1 Kalimdor, 2 Eastern Kingdoms),
+--              x, y = a point INSIDE the zone, as fractions of the
+--              continent map (x from left, y from top) }
+-- The point is fed to UpdateMapHighlight() to fetch the zone's
+-- exact highlight shape.
+DC.MAP = {
+    -- Eastern Kingdoms (continent 2)
+    [3430] = { c = 2, x = 0.55, y = 0.065, name = "Eversong Woods" },
+    [3487] = { c = 2, x = 0.60, y = 0.040, name = "Silvermoon City" },
+    [3433] = { c = 2, x = 0.57, y = 0.125, name = "Ghostlands" },
+    [139]  = { c = 2, x = 0.62, y = 0.235, name = "Eastern Plaguelands" },
+    [28]   = { c = 2, x = 0.50, y = 0.250, name = "Western Plaguelands" },
+    [85]   = { c = 2, x = 0.39, y = 0.265, name = "Tirisfal Glades" },
+    [1497] = { c = 2, x = 0.43, y = 0.305, name = "Undercity" },
+    [130]  = { c = 2, x = 0.36, y = 0.335, name = "Silverpine Forest" },
+    [36]   = { c = 2, x = 0.49, y = 0.310, name = "Alterac Mountains" },
+    [267]  = { c = 2, x = 0.46, y = 0.360, name = "Hillsbrad Foothills" },
+    [45]   = { c = 2, x = 0.55, y = 0.380, name = "Arathi Highlands" },
+    [47]   = { c = 2, x = 0.60, y = 0.345, name = "The Hinterlands" },
+    [11]   = { c = 2, x = 0.52, y = 0.460, name = "Wetlands" },
+    [38]   = { c = 2, x = 0.55, y = 0.535, name = "Loch Modan" },
+    [1]    = { c = 2, x = 0.45, y = 0.555, name = "Dun Morogh" },
+    [1537] = { c = 2, x = 0.475, y = 0.525, name = "Ironforge" },
+    [51]   = { c = 2, x = 0.50, y = 0.600, name = "Searing Gorge" },
+    [3]    = { c = 2, x = 0.56, y = 0.590, name = "Badlands" },
+    [46]   = { c = 2, x = 0.50, y = 0.650, name = "Burning Steppes" },
+    [44]   = { c = 2, x = 0.54, y = 0.700, name = "Redridge Mountains" },
+    [12]   = { c = 2, x = 0.47, y = 0.715, name = "Elwynn Forest" },
+    [1519] = { c = 2, x = 0.435, y = 0.685, name = "Stormwind City" },
+    [40]   = { c = 2, x = 0.41, y = 0.755, name = "Westfall" },
+    [10]   = { c = 2, x = 0.47, y = 0.775, name = "Duskwood" },
+    [41]   = { c = 2, x = 0.52, y = 0.770, name = "Deadwind Pass" },
+    [8]    = { c = 2, x = 0.58, y = 0.750, name = "Swamp of Sorrows" },
+    [4]    = { c = 2, x = 0.56, y = 0.825, name = "Blasted Lands" },
+    [33]   = { c = 2, x = 0.43, y = 0.865, name = "Stranglethorn Vale" },
+    -- Kalimdor (continent 1)
+    [141]  = { c = 1, x = 0.385, y = 0.080, name = "Teldrassil" },
+    [1657] = { c = 1, x = 0.355, y = 0.060, name = "Darnassus" },
+    [3525] = { c = 1, x = 0.290, y = 0.085, name = "Bloodmyst Isle" },
+    [3524] = { c = 1, x = 0.285, y = 0.130, name = "Azuremyst Isle" },
+    [3557] = { c = 1, x = 0.250, y = 0.125, name = "The Exodar" },
+    [148]  = { c = 1, x = 0.440, y = 0.140, name = "Darkshore" },
+    [493]  = { c = 1, x = 0.560, y = 0.140, name = "Moonglade" },
+    [618]  = { c = 1, x = 0.600, y = 0.185, name = "Winterspring" },
+    [361]  = { c = 1, x = 0.490, y = 0.200, name = "Felwood" },
+    [331]  = { c = 1, x = 0.490, y = 0.280, name = "Ashenvale" },
+    [16]   = { c = 1, x = 0.620, y = 0.250, name = "Azshara" },
+    [406]  = { c = 1, x = 0.430, y = 0.330, name = "Stonetalon Mountains" },
+    [14]   = { c = 1, x = 0.600, y = 0.380, name = "Durotar" },
+    [1637] = { c = 1, x = 0.605, y = 0.330, name = "Orgrimmar" },
+    [17]   = { c = 1, x = 0.520, y = 0.420, name = "The Barrens" },
+    [405]  = { c = 1, x = 0.380, y = 0.420, name = "Desolace" },
+    [215]  = { c = 1, x = 0.465, y = 0.465, name = "Mulgore" },
+    [1638] = { c = 1, x = 0.455, y = 0.440, name = "Thunder Bluff" },
+    [15]   = { c = 1, x = 0.600, y = 0.520, name = "Dustwallow Marsh" },
+    [357]  = { c = 1, x = 0.380, y = 0.550, name = "Feralas" },
+    [400]  = { c = 1, x = 0.500, y = 0.560, name = "Thousand Needles" },
+    [490]  = { c = 1, x = 0.460, y = 0.650, name = "Un'Goro Crater" },
+    [440]  = { c = 1, x = 0.550, y = 0.650, name = "Tanaris" },
+    [1377] = { c = 1, x = 0.380, y = 0.660, name = "Silithus" },
+}
+
+-- ── Overlay pool ──────────────────────────────────────────────
+-- One tinted highlight texture + one fallback dot per zone.
 DC.overlays = {}
 
-local function GetOrCreateOverlay(zoneId)
-    if DC.overlays[zoneId] then return DC.overlays[zoneId] end
+local overlayParent = CreateFrame("Frame", "DarkCenturiesOverlayFrame", WorldMapDetailFrame)
+overlayParent:SetAllPoints(WorldMapDetailFrame)
+overlayParent:SetFrameLevel(WorldMapDetailFrame:GetFrameLevel() + 1)
 
-    local region = DC.ZONE_REGIONS[zoneId]
-    if not region then return nil end
-
-    local f = CreateFrame("Frame", "DCOverlay_"..zoneId, WorldMapDetailFrame)
-    f:SetFrameLevel(WorldMapDetailFrame:GetFrameLevel() + 2)
-
-    local tex = f:CreateTexture(nil, "OVERLAY")
-    tex:SetAllPoints(f)
-    tex:SetTexture("Interface\\Buttons\\WHITE8X8")
-    tex:SetBlendMode("ADD")
-    f.tex = tex
-
-    -- Tooltip on hover
-    f:SetScript("OnEnter", function()
-        local s = DC.zoneState[zoneId]
-        if not s then return end
-        GameTooltip:SetOwner(f, "ANCHOR_RIGHT")
-        GameTooltip:SetText("|cffFFD700[Dark Centuries]|r", 1, 1, 1)
-        local zoneName = GetMapNameByID and GetMapNameByID(zoneId) or ("Zone "..zoneId)
-        GameTooltip:AddLine(zoneName, 1, 1, 1)
-        GameTooltip:AddLine(DC.FACTION_TEXT[s.faction] .. " control", 1, 1, 1)
-        local aProgress = 100 - s.progress
-        local hProgress = s.progress
-        GameTooltip:AddLine(string.format("Alliance: %d%%   Horde: %d%%", aProgress, hProgress), 0.8, 0.8, 0.8)
-        GameTooltip:Show()
-    end)
-    f:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    DC.overlays[zoneId] = f
-    return f
+local function GetOverlay(zoneId)
+    local o = DC.overlays[zoneId]
+    if o then return o end
+    o = {}
+    o.tex = overlayParent:CreateTexture(nil, "ARTWORK")
+    o.tex:Hide()
+    o.dot = overlayParent:CreateTexture(nil, "ARTWORK")
+    o.dot:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    o.dot:Hide()
+    o.pct = overlayParent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    o.pct:Hide()
+    DC.overlays[zoneId] = o
+    return o
 end
 
-local function PositionOverlays()
-    local mw = WorldMapDetailFrame:GetWidth()
-    local mh = WorldMapDetailFrame:GetHeight()
-
-    for zoneId, region in pairs(DC.ZONE_REGIONS) do
-        local f = GetOrCreateOverlay(zoneId)
-        if f then
-            f:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
-                region[1] * mw,
-               -region[2] * mh)
-            f:SetWidth(region[3]  * mw)
-            f:SetHeight(region[4] * mh)
-        end
+local function HideAllOverlays()
+    for _, o in pairs(DC.overlays) do
+        o.tex:Hide(); o.dot:Hide(); o.pct:Hide()
     end
 end
 
-local function UpdateOverlayColor(zoneId)
-    local f = DC.overlays[zoneId]
-    if not f then return end
-    local s = DC.zoneState[zoneId]
-    if not s then f:Hide(); return end
+-- ── The core: tint each zone with its faction color ──────────
+local function RefreshOverlays()
+    HideAllOverlays()
 
-    local c = DC.FACTION_COLOR[s.faction]
-    f.tex:SetVertexColor(c.r, c.g, c.b, c.a)
-    f:Show()
-end
+    -- Only draw on the two Azeroth continent maps, zoomed out
+    local cont = GetCurrentMapContinent()
+    local zone = GetCurrentMapZone()
+    if (cont ~= 1 and cont ~= 2) or zone ~= 0 then return end
 
-local function RefreshAllOverlays()
-    -- Only show on the Azeroth continent map (mapId 0)
-    local mapId = GetCurrentMapContinent and GetCurrentMapContinent() or -1
-    if mapId ~= 1 then  -- 1 = Azeroth (both continents overview)
-        for _, f in pairs(DC.overlays) do f:Hide() end
-        return
-    end
-    PositionOverlays()
-    for zoneId, _ in pairs(DC.ZONE_REGIONS) do
-        UpdateOverlayColor(zoneId)
-    end
-end
+    local width  = WorldMapDetailFrame:GetWidth()
+    local height = WorldMapDetailFrame:GetHeight()
+    if width == 0 or height == 0 then return end
 
--- ── Addon message handling ────────────────────────────────────
--- Server sends: "ZONE|zoneId|faction|progress"
-local function OnAddonMessage(prefix, msg, channel, sender)
-    if prefix ~= "DarkCenturies" then return end
+    for zoneId, m in pairs(DC.MAP) do
+        if m.c == cont then
+            local s = DC.zoneState[zoneId]
+            if s then
+                local col = DC.COLOR[s.faction] or DC.COLOR[DC.N]
+                local o = GetOverlay(zoneId)
 
-    local msgType, zoneIdStr, factionStr, progressStr = msg:match("^(%u+)|(%d+)|(%d+)|(%d+)$")
-    if not msgType then return end
+                -- Ask the client for the zone's exact highlight shape
+                local fileName, texPctX, texPctY, texX, texY, scrollX, scrollY =
+                    UpdateMapHighlight(m.x, m.y)
 
-    if msgType == "ZONE" then
-        local zoneId  = tonumber(zoneIdStr)
-        local faction = tonumber(factionStr)
-        local progress = tonumber(progressStr)
+                if fileName then
+                    o.tex:SetTexture("Interface\\WorldMap\\" .. fileName .. "\\" .. fileName .. "Highlight")
+                    o.tex:SetTexCoord(0, texPctX, 0, texPctY)
+                    o.tex:SetVertexColor(col.r, col.g, col.b, DC.ALPHA)
+                    o.tex:ClearAllPoints()
+                    o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
+                        scrollX * width, -scrollY * height)
+                    o.tex:SetWidth(texX * width)
+                    o.tex:SetHeight(texY * height)
+                    o.tex:Show()
+                else
+                    -- Fallback: colored dot at the anchor point
+                    o.dot:SetVertexColor(col.r, col.g, col.b, 0.9)
+                    o.dot:ClearAllPoints()
+                    o.dot:SetPoint("CENTER", WorldMapDetailFrame, "TOPLEFT",
+                        m.x * width, -m.y * height)
+                    o.dot:SetWidth(14); o.dot:SetHeight(14)
+                    o.dot:Show()
+                end
 
-        DC.zoneState[zoneId] = { faction = faction, progress = progress }
-
-        -- Update overlay if world map is open
-        if WorldMapFrame:IsShown() then
-            local f = GetOrCreateOverlay(zoneId)
-            if f then
-                PositionOverlays()
-                UpdateOverlayColor(zoneId)
+                -- Contested zones show the current balance
+                if s.faction == DC.N and s.progress ~= 50 then
+                    local aPct = 100 - s.progress
+                    o.pct:ClearAllPoints()
+                    o.pct:SetPoint("CENTER", WorldMapDetailFrame, "TOPLEFT",
+                        m.x * width, -m.y * height)
+                    if s.progress > 50 then
+                        o.pct:SetText("|cffFF4444" .. s.progress .. "%|r")
+                    else
+                        o.pct:SetText("|cff4477FF" .. aPct .. "%|r")
+                    end
+                    o.pct:Show()
+                end
             end
         end
     end
 end
 
--- ── Event frame ──────────────────────────────────────────────
+-- ── Legend on the world map ───────────────────────────────────
+local legend = overlayParent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+legend:SetPoint("BOTTOMLEFT", WorldMapDetailFrame, "BOTTOMLEFT", 8, 6)
+legend:SetText("|cffFFD700Dark Centuries:|r |cff4477FFAlliance|r  |cffFF4444Horde|r  |cffFFCC00Contested|r")
+legend:Hide()
+
+local function RefreshLegend()
+    local cont = GetCurrentMapContinent()
+    if (cont == 1 or cont == 2) and GetCurrentMapZone() == 0 then
+        legend:Show()
+    else
+        legend:Hide()
+    end
+end
+
+-- ── Server messages ───────────────────────────────────────────
+-- "ZONE|zoneId|faction|progress"
+local function OnAddonMessage(prefix, msg)
+    if prefix ~= "DarkCenturies" then return end
+    local msgType, zoneIdStr, factionStr, progressStr = string.match(msg, "^(%u+)|(%d+)|(%d+)|(%d+)$")
+    if msgType ~= "ZONE" then return end
+
+    local zoneId = tonumber(zoneIdStr)
+    DC.zoneState[zoneId] = {
+        faction  = tonumber(factionStr),
+        progress = tonumber(progressStr),
+    }
+
+    if WorldMapFrame:IsShown() then
+        RefreshOverlays()
+    end
+end
+
+-- ── Events ───────────────────────────────────────────────────
 local frame = CreateFrame("Frame", "DarkCenturiesFrame")
 frame:RegisterEvent("CHAT_MSG_ADDON")
 frame:RegisterEvent("WORLD_MAP_UPDATE")
@@ -153,39 +226,46 @@ frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:SetScript("OnEvent", function(self, event, ...)
     if event == "CHAT_MSG_ADDON" then
         OnAddonMessage(...)
-    elseif event == "WORLD_MAP_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
+    else
         if WorldMapFrame:IsShown() then
-            RefreshAllOverlays()
+            RefreshOverlays()
+            RefreshLegend()
         end
     end
 end)
 
--- Hook world map open/close to show/hide overlays
-hooksecurefunc("ShowUIPanel", function(panel)
-    if panel == WorldMapFrame then
-        RefreshAllOverlays()
-    end
+WorldMapFrame:HookScript("OnShow", function()
+    RefreshOverlays()
+    RefreshLegend()
 end)
 
--- ── Slash command ─────────────────────────────────────────────
+-- ── Slash commands ────────────────────────────────────────────
 SLASH_DARKCENTURIES1 = "/dc"
 SlashCmdList["DARKCENTURIES"] = function(msg)
+    msg = string.lower(msg or "")
     if msg == "status" then
-        print("|cffFFD700[Dark Centuries]|r Zone control status:")
+        local a, h, n = 0, 0, 0
+        print("|cffFFD700[Dark Centuries]|r World control:")
         for zoneId, s in pairs(DC.zoneState) do
-            local zoneName = GetMapNameByID and GetMapNameByID(zoneId) or ("Zone "..zoneId)
-            print(string.format("  %s — %s (%d%%H / %d%%A)",
-                zoneName,
-                DC.FACTION_TEXT[s.faction],
-                s.progress,
-                100 - s.progress))
+            local m = DC.MAP[zoneId]
+            local zname = (m and m.name) or ("Zone " .. zoneId)
+            if s.faction == DC.A then a = a + 1
+            elseif s.faction == DC.H then h = h + 1
+            else
+                n = n + 1
+                print(string.format("  %s — %s (A %d%% / H %d%%)",
+                    zname, DC.FACTION_TEXT[s.faction], 100 - s.progress, s.progress))
+            end
         end
+        print(string.format("  Totals: |cff4477FFAlliance %d|r  |cffFF4444Horde %d|r  |cffFFCC00Contested %d|r", a, h, n))
+    elseif msg == "map" then
+        ToggleWorldMap()
     else
-        print("|cffFFD700[Dark Centuries]|r  /dc status — show all zone control")
+        print("|cffFFD700[Dark Centuries]|r commands:")
+        print("  /dc status — faction totals + contested zone breakdown")
+        print("  /dc map — open the territory map")
     end
 end
 
--- Register addon message prefix
-RegisterAddonMessagePrefix("DarkCenturies")
-
-DEFAULT_CHAT_FRAME:AddMessage("|cffFFD700[Dark Centuries]|r Zone control active. Open your world map to see contested zones.")
+DEFAULT_CHAT_FRAME:AddMessage(
+    "|cffFFD700World of Warcraft: Dark Centuries|r — territory war active. Open your map (M) to see the front lines.")
