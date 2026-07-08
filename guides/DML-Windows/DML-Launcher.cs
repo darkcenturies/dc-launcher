@@ -930,7 +930,7 @@ class TrayApp : ApplicationContext
         dcInstallItem.Click += delegate {
             DeferCloseMenu();
             OpenLiveConsole(
-                "curl -fsSL https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/install.sh | bash",
+                "curl -fsSL 'https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/install.sh?cb=" + DateTime.UtcNow.Ticks + "' | bash",
                 "Install Dark Centuries");
         };
         var dcUninstallItem = new ToolStripMenuItem("Uninstall Dark Centuries");
@@ -941,7 +941,7 @@ class TrayApp : ApplicationContext
                     "Uninstall Dark Centuries", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
             OpenLiveConsole(
-                "curl -fsSL https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/uninstall.sh | bash",
+                "curl -fsSL 'https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/uninstall.sh?cb=" + DateTime.UtcNow.Ticks + "' | bash",
                 "Uninstall Dark Centuries");
         };
         dcMenu.DropDownItems.Add(dcInstallItem);
@@ -1583,7 +1583,7 @@ class TrayApp : ApplicationContext
                     "Install-WoW-WotLK.ps1");
             else
                 OpenLiveConsole(
-                    "curl -fsSL https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/install.sh | bash",
+                    "curl -fsSL 'https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/install.sh?cb=" + DateTime.UtcNow.Ticks + "' | bash",
                     "Install Dark Centuries");
         }
     }
@@ -2419,8 +2419,9 @@ class SetupWizardForm : Form
                 }
                 else
                 {
+                    string cbUrl = url + (url.Contains("?") ? "&" : "?") + "cb=" + DateTime.UtcNow.Ticks;
                     psi = new System.Diagnostics.ProcessStartInfo("wt.exe",
-                        "new-tab -- wsl -d dml-arch -- bash -c \"curl -fsSL " + url + " | bash\"");
+                        "new-tab -- wsl -d dml-arch -- bash -c \"curl -fsSL '" + cbUrl + "' | bash\"");
                     psi.UseShellExecute = true;
                 }
                 try { System.Diagnostics.Process.Start(psi); } catch { }
