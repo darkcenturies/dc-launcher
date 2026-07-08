@@ -925,6 +925,29 @@ class TrayApp : ApplicationContext
         installItem.Click += delegate { ShowInstallDialog(); };
         extrasMenu.DropDownItems.Add(installItem);
 
+        var dcMenu = new ToolStripMenuItem("Dark Centuries");
+        var dcInstallItem = new ToolStripMenuItem("Install Dark Centuries");
+        dcInstallItem.Click += delegate {
+            DeferCloseMenu();
+            OpenLiveConsole(
+                "curl -fsSL https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/install.sh | bash",
+                "Install Dark Centuries");
+        };
+        var dcUninstallItem = new ToolStripMenuItem("Uninstall Dark Centuries");
+        dcUninstallItem.Click += delegate {
+            DeferCloseMenu();
+            if (MessageBox.Show(
+                    "This will remove the Dark Centuries Lua script, SQL data, and NPC templates from your server.\n\nContinue?",
+                    "Uninstall Dark Centuries", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                return;
+            OpenLiveConsole(
+                "curl -fsSL https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/uninstall.sh | bash",
+                "Uninstall Dark Centuries");
+        };
+        dcMenu.DropDownItems.Add(dcInstallItem);
+        dcMenu.DropDownItems.Add(dcUninstallItem);
+        extrasMenu.DropDownItems.Add(dcMenu);
+
         var shellItem = new ToolStripMenuItem("Open DCL Shell");
         shellItem.Click += delegate { OpenTerminal("-d " + DISTRO); };
         extrasMenu.DropDownItems.Add(shellItem);
