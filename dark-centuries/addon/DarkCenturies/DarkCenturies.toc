@@ -1,0 +1,7 @@
+## Interface: 30300
+## Title: Dark Centuries
+## Notes: Zone control warfare — coloured map overlay for contested zones
+## Author: darkcenturies
+## Version: 1.0.0
+
+DarkCenturies.lua
