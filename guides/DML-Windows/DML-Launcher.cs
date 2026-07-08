@@ -937,7 +937,7 @@ class TrayApp : ApplicationContext
         dcUninstallItem.Click += delegate {
             DeferCloseMenu();
             if (MessageBox.Show(
-                    "This will remove the Dark Centuries Lua script, SQL data, and NPC templates from your server.\n\nContinue?",
+                    "This will remove the Dark Centuries Lua script and SQL data from your server.\n\nContinue?",
                     "Uninstall Dark Centuries", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
             OpenLiveConsole(

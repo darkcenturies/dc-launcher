@@ -93,7 +93,7 @@ done
 ok "Database: $DB_CONTAINER"
 
 # ── 4. Apply SQL ─────────────────────────────────────────────
-for f in 01_schema.sql 02_zones.sql 03_npcs.sql; do
+for f in 01_schema.sql 02_zones.sql; do
     info "Applying $f..."
     if curl -fsSL "$BASE_RAW/sql/$f" | docker exec -i "$DB_CONTAINER" mysql -uroot -p"$DB_ROOT_PASSWORD" acore_world 2>/dev/null; then
         ok "$f applied"

@@ -11,9 +11,6 @@ DC.DECAY_PER_TICK    = 1      -- points back toward 50 per tick (when no fightin
 DC.DECAY_TICK_MS     = 30000  -- 30 seconds
 DC.CONTROL_THRESHOLD = 30     -- <30 = Alliance control, >70 = Horde control
 DC.XP_BONUS_PCT      = 0.25   -- 25% bonus XP in controlled zones
-DC.GUARD_ENTRY_A     = 900001 -- Alliance Guardian NPC entry
-DC.GUARD_ENTRY_H     = 900002 -- Horde Guardian NPC entry
-DC.GUARDS_PER_ZONE   = 3      -- patrol guards spawned on capture
 
 -- Faction constants (matches GetTeam(): 0=Alliance, 1=Horde)
 DC.A = 1  -- Alliance faction ID (internal)
@@ -21,57 +18,21 @@ DC.H = 2  -- Horde faction ID (internal)
 DC.N = 0  -- Neutral
 
 -- ── Contested zones ─────────────────────────────────────────
--- [zone_id] = { name, patrol spawn points {x,y,z,o} }
+-- [zone_id] = { name }
 DC.ZONES = {
-    [267]  = { name = "Hillsbrad Foothills", spawns = {
-        { 326.4, -609.5,  58.8, 1.57 },
-        { 962.7, -475.2,  57.4, 4.71 },
-        { 118.3, -780.1,  62.1, 3.14 },
-    }},
-    [45]   = { name = "Arathi Highlands", spawns = {
-        {-1268.8, -2195.7, 100.3, 3.14 },
-        { -769.3, -2253.0,  54.3, 1.57 },
-        {-1050.2, -2100.5,  47.8, 0.0  },
-    }},
-    [33]   = { name = "Stranglethorn Vale", spawns = {
-        {-1260.0, -3400.0,  35.0, 1.57 },
-        {-1455.3, -3895.4,  34.7, 4.71 },
-        {-1370.8, -3640.2,  35.1, 3.14 },
-    }},
-    [36]   = { name = "Alterac Mountains", spawns = {
-        { 289.4,  -695.2, 363.0, 1.57 },
-        {  42.7,  -551.8, 352.3, 4.71 },
-        {-180.5,  -480.1, 340.0, 0.0  },
-    }},
-    [139]  = { name = "Eastern Plaguelands", spawns = {
-        { 2438.0, -5265.7,  75.4, 1.57 },
-        { 3375.0, -3426.0, 144.3, 4.71 },
-        { 2800.0, -4100.0,  95.2, 3.14 },
-    }},
-    [28]   = { name = "Western Plaguelands", spawns = {
-        {-1185.0, -1727.0,  52.0, 1.57 },
-        { -800.0, -1400.0,  80.0, 3.14 },
-        {-1050.0, -1550.0,  65.0, 4.71 },
-    }},
-    [1377] = { name = "Silithus", spawns = {
-        {-7103.0,  846.0,  23.0, 4.71 },
-        {-7350.0,  680.0,  25.0, 1.57 },
-        {-7200.0,  760.0,  24.0, 0.0  },
-    }},
-    [3]    = { name = "Badlands", spawns = {
-        {-6456.0, -1280.0, 223.0, 1.57 },
-        {-6800.0, -1050.0, 218.0, 4.71 },
-        {-7000.0, -1200.0, 215.0, 0.0  },
-    }},
-    [46]   = { name = "Burning Steppes", spawns = {
-        {-7524.0, -1019.0, 297.0, 1.57 },
-        {-7107.0, -1231.0, 285.0, 3.14 },
-        {-7300.0, -1100.0, 290.0, 4.71 },
-    }},
+    [267] = { name = "Hillsbrad Foothills" },
+    [45] = { name = "Arathi Highlands" },
+    [33] = { name = "Stranglethorn Vale" },
+    [36] = { name = "Alterac Mountains" },
+    [139] = { name = "Eastern Plaguelands" },
+    [28] = { name = "Western Plaguelands" },
+    [1377] = { name = "Silithus" },
+    [3] = { name = "Badlands" },
+    [46] = { name = "Burning Steppes" },
 }
 
 -- ── State ────────────────────────────────────────────────────
--- [zone_id] = { progress=50, faction=0, guards={} }
+-- [zone_id] = { progress=50, faction=0 }
 DC.state = {}
 
 -- ── Helpers ──────────────────────────────────────────────────
@@ -115,52 +76,12 @@ local function LoadState()
         local prog = result:GetUInt32(1)
         local fac  = result:GetUInt32(2)
         local flps = result:GetUInt32(3)
-        DC.state[zid] = { progress = prog, faction = fac, flips = flps, guards = {} }
+        DC.state[zid] = { progress = prog, faction = fac, flips = flps }
     until not result:NextRow()
     -- Fill any missing zones with default neutral state
     for zid, _ in pairs(DC.ZONES) do
         if not DC.state[zid] then
-            DC.state[zid] = { progress = 50, faction = DC.N, flips = 0, guards = {} }
-        end
-    end
-end
-
--- ── Guard spawning ───────────────────────────────────────────
-local function DespawnGuards(zoneId)
-    local s = DC.state[zoneId]
-    if not s then return end
-    for _, creature in ipairs(s.guards) do
-        if creature and creature:IsInWorld() then
-            creature:DespawnOrUnsummon(0)
-        end
-    end
-    s.guards = {}
-end
-
-local function SpawnGuards(zoneId, faction)
-    local zone = DC.ZONES[zoneId]
-    if not zone then return end
-    local entry = (faction == DC.A) and DC.GUARD_ENTRY_A or DC.GUARD_ENTRY_H
-    local s = DC.state[zoneId]
-    s.guards = {}
-
-    -- Find a player in the zone to get the map reference
-    local map = nil
-    local players = GetPlayersInWorld()
-    for _, p in ipairs(players) do
-        if p:GetZoneId() == zoneId then
-            map = p:GetMap()
-            break
-        end
-    end
-    if not map then return end  -- No players in zone right now; guards spawn on next player entry
-
-    local count = math.min(DC.GUARDS_PER_ZONE, #zone.spawns)
-    for i = 1, count do
-        local sp = zone.spawns[i]
-        local creature = map:SpawnCreature(entry, sp[1], sp[2], sp[3], sp[4], 0)
-        if creature then
-            table.insert(s.guards, creature)
+            DC.state[zid] = { progress = 50, faction = DC.N, flips = 0 }
         end
     end
 end
@@ -197,11 +118,6 @@ local function OnZoneFlip(zoneId, newFaction, oldFaction)
         "|cffFFD700[Dark Centuries]|r %s%s|r has claimed %s! (captured %d times)",
         FactionColor(newFaction), FactionName(newFaction), zname, s.flips))
 
-    -- Swap patrol guards
-    DespawnGuards(zoneId)
-    if newFaction ~= DC.N then
-        SpawnGuards(zoneId, newFaction)
-    end
 
     SaveZone(zoneId)
     BroadcastZoneState(zoneId)
