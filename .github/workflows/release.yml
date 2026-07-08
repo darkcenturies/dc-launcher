@@ -1,0 +1,55 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile DC-Launcher.exe
+        shell: cmd
+        run: |
+          "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" ^
+            /nologo /optimize+ /target:winexe ^
+            /reference:System.dll,System.Drawing.dll,System.Windows.Forms.dll,System.Net.dll ^
+            /out:DC-Launcher.exe ^
+            guides\DML-Windows\DML-Launcher.cs
+          if errorlevel 1 exit /b 1
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: DC-Launcher.exe
+          generate_release_notes: false
+          body: |
+            ## ${{ github.ref_name }}
+
+            **Download `DC-Launcher.exe` below and run it. That is all.**
+
+            The launcher installs itself, sets up WSL2 + Docker, and walks you through
+            installing your WoW WotLK private server — all from one file.
+
+            ### First run
+            1. Download `DC-Launcher.exe`
+            2. Run it — if SmartScreen appears, click **More info → Run anyway**
+            3. Follow the 3-step wizard: base environment → WoW server → done
+            4. Tray icon appears when ready
+
+            ### Already installed?
+            Running the exe again detects the existing install and offers to update.
+
+            ### Uninstall
+            Settings → Apps → DC Launcher → Uninstall
+
+            ### Source
+            Compiled from [`guides/DML-Windows/DML-Launcher.cs`](guides/DML-Windows/DML-Launcher.cs)
