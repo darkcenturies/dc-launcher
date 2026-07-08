@@ -50,8 +50,34 @@ if [ ! -d "$LUA_DIR" ]; then
 fi
 
 # ── 3. Database container ────────────────────────────────────
+# ── Docker availability ──────────────────────────────────────
+# Group membership may not be active in this shell; daemon may be stopped.
+if ! docker ps >/dev/null 2>&1; then
+    if sudo -n docker ps >/dev/null 2>&1 || sudo docker ps >/dev/null 2>&1; then
+        docker() { sudo /usr/bin/docker "$@"; }
+        info "Using sudo for docker"
+    else
+        info "Docker daemon not running — starting it (may ask for your password)..."
+        sudo systemctl start docker 2>/dev/null || sudo service docker start 2>/dev/null
+        sleep 3
+        if docker ps >/dev/null 2>&1; then
+            :
+        elif sudo docker ps >/dev/null 2>&1; then
+            docker() { sudo /usr/bin/docker "$@"; }
+        else
+            fail "Docker is not available. Start your server once via DC Launcher first."
+        fi
+    fi
+fi
+
 DB_CONTAINER=$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep -iE 'ac-database|wow.*database' | head -1)
-[ -n "$DB_CONTAINER" ] || fail "No database container found. Is Docker running? (Try starting the server once first.)"
+if [ -z "$DB_CONTAINER" ]; then
+    info "Database container not found — creating it via docker compose..."
+    (cd "$SERVER_DIR" && docker compose up -d ac-database >/dev/null 2>&1) || true
+    sleep 2
+    DB_CONTAINER=$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep -iE 'ac-database|wow.*database' | head -1)
+fi
+[ -n "$DB_CONTAINER" ] || fail "Could not find or create the database container. Start your server once via DC Launcher first."
 
 if ! docker ps --format '{{.Names}}' | grep -q "^$DB_CONTAINER$"; then
     info "Starting database container..."
