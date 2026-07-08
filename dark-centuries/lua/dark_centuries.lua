@@ -330,4 +330,6 @@ RegisterPlayerEvent(4,  OnLogin)        -- PLAYER_EVENT_ON_LOAD
 
 CreateLuaEvent(DecayTick, DC.DECAY_TICK_MS, 0)  -- 0 = repeat forever
 
-print("[Dark Centuries] Zone control loaded — " .. tostring(#DC.ZONES) .. " zones active")
+local zoneCount = 0
+for _ in pairs(DC.ZONES) do zoneCount = zoneCount + 1 end
+print("[Dark Centuries] Zone control loaded — " .. zoneCount .. " zones active")

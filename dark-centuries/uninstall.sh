@@ -1,37 +1,81 @@
 #!/usr/bin/env bash
-# Dark Centuries — uninstaller
-# curl -fsSL <url>/dark-centuries/uninstall.sh | bash
+# ============================================================
+#  Dark Centuries — uninstaller
+#  curl -fsSL .../dark-centuries/uninstall.sh | bash
+# ============================================================
 
-set -e
+set -o pipefail
 
-BASE_RAW="https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries"
+DB_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-password}"
 
-AC_DIR="${AC_DIR:-/home/acore/azerothcore}"
-LUA_DIR="$AC_DIR/lua_scripts"
-MYSQL_USER="${MYSQL_USER:-acore}"
-MYSQL_PASS="${MYSQL_PASS:-acore}"
-MYSQL_DB="${MYSQL_DB:-acore_world}"
-
-echo "[Dark Centuries] Uninstalling..."
-
-# ── 1. Remove Lua script ──────────────────────────────────────
-if [ -f "$LUA_DIR/dark_centuries.lua" ]; then
-    rm -f "$LUA_DIR/dark_centuries.lua"
-    echo "  → Removed $LUA_DIR/dark_centuries.lua"
-else
-    echo "  → Lua script not found (already removed?)"
-fi
-
-# ── 2. Remove SQL data ────────────────────────────────────────
-echo "  → Removing SQL data..."
-mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB" <<'SQL'
-DELETE FROM smart_scripts WHERE entryorguid IN (900001, 900002) AND source_type = 0;
-DELETE FROM creature_template WHERE entry IN (900001, 900002);
-DELETE FROM creature WHERE id IN (900001, 900002);
-DROP TABLE IF EXISTS dc_zone_control;
-SQL
-echo "     Done."
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+ok()   { echo -e "  ${GREEN}[OK]${NC} $1"; }
+info() { echo -e "  ${CYAN}[..]${NC} $1"; }
+warn() { echo -e "  ${YELLOW}[WARN]${NC} $1"; }
+fail() { echo -e "  ${RED}[FAIL]${NC} $1"; exit 1; }
 
 echo ""
-echo "[Dark Centuries] Uninstalled. Restart worldserver to apply."
-echo "  Remove WoW/Interface/AddOns/DarkCenturies/ from your WoW client manually."
+echo "=== Dark Centuries — Uninstall ==="
+echo ""
+
+# ── 1. Locate server install ─────────────────────────────────
+SERVER_DIR=""
+for candidate in "$HOME/games/wow-server-playerbots" "$HOME/wow-server-playerbots" "$HOME"/games/*/; do
+    if [ -f "$candidate/docker-compose.yml" ] || [ -d "$candidate/env/dist/etc" ]; then
+        SERVER_DIR="${candidate%/}"
+        break
+    fi
+done
+[ -n "$SERVER_DIR" ] || fail "No WotLK server install found."
+ok "Server: $SERVER_DIR"
+
+# ── 2. Remove Lua script (new + any legacy location) ─────────
+removed=false
+for lua in "$SERVER_DIR/env/dist/etc/modules/lua_scripts/dark_centuries.lua" \
+           "/home/acore/azerothcore/lua_scripts/dark_centuries.lua"; do
+    if [ -f "$lua" ]; then
+        rm -f "$lua" && ok "Removed $lua" && removed=true
+    fi
+done
+$removed || info "Lua script not found (already removed?)"
+
+# ── 3. Remove SQL data ───────────────────────────────────────
+DB_CONTAINER=$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep -iE 'ac-database|wow.*database' | head -1)
+if [ -n "$DB_CONTAINER" ]; then
+    if ! docker ps --format '{{.Names}}' | grep -q "^$DB_CONTAINER$"; then
+        info "Starting database container..."
+        (cd "$SERVER_DIR" && docker compose up -d ac-database >/dev/null 2>&1) || true
+    fi
+    for i in $(seq 1 15); do
+        docker exec "$DB_CONTAINER" mysqladmin ping -uroot -p"$DB_ROOT_PASSWORD" >/dev/null 2>&1 && break
+        [ "$i" = 15 ] && fail "Database did not become ready."
+        sleep 2
+    done
+    info "Removing SQL data..."
+    docker exec -i "$DB_CONTAINER" mysql -uroot -p"$DB_ROOT_PASSWORD" acore_world 2>/dev/null <<'SQL'
+DELETE FROM smart_scripts WHERE entryorguid IN (900001, 900002) AND source_type = 0;
+DELETE FROM creature WHERE id1 IN (900001, 900002);
+DELETE FROM creature_template WHERE entry IN (900001, 900002);
+DROP TABLE IF EXISTS dc_zone_control;
+SQL
+    ok "SQL data removed"
+else
+    warn "Database container not found — SQL data not removed."
+fi
+
+# ── 4. Client addon (best effort) ────────────────────────────
+for base in /mnt/c /mnt/d; do
+    for p in "$base/Games/World of Warcraft 3.3.5a" "$base/Games/WoW-3.3.5a" \
+             "$base/WoW" "$base/Games/WoW" "$base"/Users/*/Desktop/WoW* \
+             "$base"/Users/*/Games/WoW*; do
+        if [ -d "$p/Interface/AddOns/DarkCenturies" ]; then
+            rm -rf "$p/Interface/AddOns/DarkCenturies" && ok "Client addon removed: $p"
+        fi
+    done
+done
+
+echo ""
+ok "Dark Centuries uninstalled."
+info "Restart the worldserver to apply:"
+echo "         cd $SERVER_DIR && docker compose restart ac-worldserver"
+echo ""
