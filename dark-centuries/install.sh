@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Dark Centuries — installer
-# Run from inside WSL (dml-arch) after your AzerothCore server is set up
+# Dark Centuries — self-contained installer
+# Can be run directly or piped: curl -fsSL <url>/dark-centuries/install.sh | bash
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_RAW="https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries"
 
 # ── Paths (adjust if your setup differs) ──────────────────────
 AC_DIR="${AC_DIR:-/home/acore/azerothcore}"
@@ -17,24 +17,25 @@ echo "[Dark Centuries] Installing..."
 
 # ── 1. SQL ────────────────────────────────────────────────────
 echo "  → Applying SQL schema..."
-mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB" < "$SCRIPT_DIR/sql/01_schema.sql"
-mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB" < "$SCRIPT_DIR/sql/02_zones.sql"
-mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB" < "$SCRIPT_DIR/sql/03_npcs.sql"
+curl -fsSL "$BASE_RAW/sql/01_schema.sql" | mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB"
+curl -fsSL "$BASE_RAW/sql/02_zones.sql"  | mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB"
+curl -fsSL "$BASE_RAW/sql/03_npcs.sql"   | mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB"
 echo "     Done."
 
 # ── 2. Lua script ─────────────────────────────────────────────
-echo "  → Copying Lua script..."
+echo "  → Installing Lua script..."
 mkdir -p "$LUA_DIR"
-cp "$SCRIPT_DIR/lua/dark_centuries.lua" "$LUA_DIR/dark_centuries.lua"
+curl -fsSL "$BASE_RAW/lua/dark_centuries.lua" -o "$LUA_DIR/dark_centuries.lua"
 echo "     Copied to $LUA_DIR/dark_centuries.lua"
 
 # ── 3. Client addon ───────────────────────────────────────────
 echo ""
 echo "  ╔══════════════════════════════════════════════════════╗"
 echo "  ║  CLIENT ADDON                                        ║"
-echo "  ║  Copy the DarkCenturies/ folder from:               ║"
-echo "  ║    dark-centuries/addon/DarkCenturies/               ║"
-echo "  ║  to your WoW client:                                 ║"
+echo "  ║  Download the DarkCenturies addon folder from:       ║"
+echo "  ║    https://github.com/darkcenturies/dc-launcher      ║"
+echo "  ║      dark-centuries/addon/DarkCenturies/             ║"
+echo "  ║  Copy it to your WoW client:                         ║"
 echo "  ║    WoW/Interface/AddOns/DarkCenturies/               ║"
 echo "  ╚══════════════════════════════════════════════════════╝"
 echo ""

@@ -1,4 +1,4 @@
-﻿// DML-Launcher.cs -- darkcenturies WotLK Launcher (fork of Dad's MMO Lab)
+// DML-Launcher.cs -- darkcenturies WotLK Launcher (fork of Dad's MMO Lab)
 // Compiled at install time: csc.exe /target:winexe /r:System.Windows.Forms.dll /r:System.Drawing.dll
 
 using System;
@@ -1522,22 +1522,22 @@ class TrayApp : ApplicationContext
             rbWotlk.Text    = "WotLK 3.3.5a — AzerothCore + Playerbots (new server)";
             rbWotlk.Left    = 16; rbWotlk.Top = 50; rbWotlk.Width = 400; rbWotlk.Checked = true;
 
-            var rbUnbound = new RadioButton();
-            rbUnbound.Text  = "Add Unbound Wrath to existing server";
-            rbUnbound.Left  = 16; rbUnbound.Top = 78; rbUnbound.Width = 400;
+            var rbDC = new RadioButton();
+            rbDC.Text  = "Install Dark Centuries (zone control warfare plugin)";
+            rbDC.Left  = 16; rbDC.Top = 78; rbDC.Width = 400;
 
             bool hasWotlk = LoadTitleCache().Length > 0;
-            bool unboundInstalled = false;
+            bool dcInstalled = false;
             if (hasWotlk)
             {
                 try {
-                    string ub = WslRun("[ -f ~/games/wow-server-playerbots/env/dist/etc/modules/lua_scripts/unbound_mentor.lua ] && echo yes || echo no");
-                    unboundInstalled = ub.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase);
+                    string dc = WslRun("[ -f ~/games/wow-server-playerbots/env/dist/etc/modules/lua_scripts/dark_centuries.lua ] && echo yes || echo no");
+                    dcInstalled = dc.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase);
                 } catch { }
             }
-            rbUnbound.Enabled = hasWotlk && !unboundInstalled;
-            if (!rbUnbound.Enabled)
-                rbUnbound.Text += unboundInstalled ? " (already installed)" : " (install WotLK first)";
+            rbDC.Enabled = hasWotlk && !dcInstalled;
+            if (!rbDC.Enabled)
+                rbDC.Text += dcInstalled ? " (already installed)" : " (install WotLK first)";
 
             var note = new Label();
             note.Left = 16; note.Top = 112; note.Width = 400; note.Height = 36;
@@ -1552,7 +1552,7 @@ class TrayApp : ApplicationContext
             btnCancel.Text = "Cancel"; btnCancel.Left = 332; btnCancel.Top = 168;
             btnCancel.Width = 85; btnCancel.DialogResult = DialogResult.Cancel;
 
-            form.Controls.AddRange(new Control[] { lbl, rbWotlk, rbUnbound, note, btnInstall, btnCancel });
+            form.Controls.AddRange(new Control[] { lbl, rbWotlk, rbDC, note, btnInstall, btnCancel });
             form.AcceptButton = btnInstall;
             form.CancelButton = btnCancel;
 
@@ -1564,8 +1564,8 @@ class TrayApp : ApplicationContext
                     "Install-WoW-WotLK.ps1");
             else
                 OpenLiveConsole(
-                    "curl -fsSL https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/guides/unbound-wrath/install-wrath-unbound-addon.sh | bash",
-                    "Install Unbound Wrath");
+                    "curl -fsSL https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/install.sh | bash",
+                    "Install Dark Centuries");
         }
     }
 
@@ -2333,8 +2333,8 @@ class SetupWizardForm : Form
             "Downloads ~10 GB - takes 10-20 minutes.",
             20, 60, 460, 50));
 
-        var chkUnbound = new CheckBox {
-            Text = "Also install Unbound Wrath (adds cross-class abilities)",
+        var chkDC = new CheckBox {
+            Text = "Also install Dark Centuries (zone control warfare plugin)",
             Left = 20, Top = 120, Width = 460, Height = 24
         };
 
@@ -2343,20 +2343,20 @@ class SetupWizardForm : Form
         bool[] busy2 = { false };
         btnRun.Click += delegate {
             if (busy2[0]) return; busy2[0] = true; btnRun.Enabled = false;
-            bool addUB = chkUnbound.Checked;
+            bool addDC = chkDC.Checked;
             DownloadAndRun(BASE_URL + "guides/wow-wotlk/Install-WoW-WotLK.ps1",
                 "Install-WoW-WotLK.ps1", true, delegate {
                     PostUi(delegate { btnRun.Enabled = true; busy2[0] = false; });
-                    if (addUB)
+                    if (addDC)
                         PostUi(delegate {
                             DownloadAndRun(
-                                BASE_URL + "guides/unbound-wrath/install-wrath-unbound-addon.sh",
-                                "install-wrath-unbound-addon.sh", false, null);
+                                BASE_URL + "dark-centuries/install.sh",
+                                "dc-install.sh", false, null);
                         });
                 });
         };
         btnSkip.Click += delegate { GoPage(4); };
-        p.Controls.AddRange(new Control[] { chkUnbound, btnRun, btnSkip });
+        p.Controls.AddRange(new Control[] { chkDC, btnRun, btnSkip });
         return p;
     }
 
