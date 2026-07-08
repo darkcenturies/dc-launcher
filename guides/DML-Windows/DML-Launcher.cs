@@ -1815,8 +1815,16 @@ class TrayApp : ApplicationContext
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "DC Launcher"),
         System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DC Launcher"),
+        System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DC-Launcher"),
         @"C:\DCL",
         @"C:\DML",
+    };
+
+    // All exe names we might be installed as (legacy DML-Launcher.exe or current DC-Launcher.exe)
+    static readonly string[] KnownExeNames = new string[] {
+        "DC-Launcher.exe",
+        "DML-Launcher.exe",
     };
 
     // Default install target (Program Files)
@@ -1837,33 +1845,51 @@ class TrayApp : ApplicationContext
 
     public static bool IsAlreadyInstalled()
     {
-        foreach (var dir in KnownInstallDirs)
-            if (System.IO.File.Exists(System.IO.Path.Combine(dir, "DC-Launcher.exe"))) return true;
-        return false;
+        return FindInstalledExe() != null;
     }
 
     public static string FindInstalledExe()
     {
         foreach (var dir in KnownInstallDirs)
-        {
-            string p = System.IO.Path.Combine(dir, "DC-Launcher.exe");
-            if (System.IO.File.Exists(p)) return p;
-        }
+            foreach (var exe in KnownExeNames)
+            {
+                string p = System.IO.Path.Combine(dir, exe);
+                if (System.IO.File.Exists(p)) return p;
+            }
         return null;
     }
 
     public static void OfferUpdate()
     {
         string current   = System.Reflection.Assembly.GetExecutingAssembly().Location;
-        string installed = FindInstalledExe() ?? System.IO.Path.Combine(InstallDir, "DC-Launcher.exe");
+        string foundExe  = FindInstalledExe();
+
+        // If we cannot find any existing install, offer a fresh install instead
+        if (foundExe == null)
+        {
+            var doFresh = MessageBox.Show(
+                "An existing DC Launcher install was detected in the registry but the\n" +
+                "exe could not be found on disk.\n\n" +
+                "Run the setup wizard to install fresh?",
+                "DC Launcher", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (doFresh == DialogResult.Yes) RunSetupWizard();
+            return;
+        }
+
+        // Always update to DC-Launcher.exe in the same folder the old exe lives in
+        string installDir = System.IO.Path.GetDirectoryName(foundExe);
+        string installed  = System.IO.Path.Combine(installDir, "DC-Launcher.exe");
 
         var choice = MessageBox.Show(
             "DC Launcher is already installed on this PC.\n\n" +
+            "Installed at: " + installDir + "\n\n" +
             "Update to this version (v" + VERSION + ")?",
             "DC Launcher", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
         if (choice != DialogResult.Yes) return;
 
         foreach (var p in Process.GetProcessesByName("DC-Launcher"))
+            try { if (p.Id != Process.GetCurrentProcess().Id) p.Kill(); } catch { }
+        foreach (var p in Process.GetProcessesByName("DML-Launcher"))
             try { if (p.Id != Process.GetCurrentProcess().Id) p.Kill(); } catch { }
 
         string bat = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dc-update.cmd");
