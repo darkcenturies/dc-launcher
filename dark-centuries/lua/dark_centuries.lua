@@ -298,12 +298,19 @@ end
 -- ── Bootstrap ────────────────────────────────────────────────
 LoadState()
 
-RegisterPlayerEvent(7,  OnKillPlayer)   -- PLAYER_EVENT_ON_KILL_PLAYER
-RegisterPlayerEvent(13, OnGiveXP)       -- PLAYER_EVENT_ON_GIVE_EXP
-RegisterPlayerEvent(28, OnUpdateZone)   -- PLAYER_EVENT_ON_UPDATE_ZONE
-RegisterPlayerEvent(4,  OnLogin)        -- PLAYER_EVENT_ON_LOGIN
+-- Eluna PlayerEvents (correct IDs — see Eluna Hooks.h):
+--   3 = ON_LOGIN, 6 = ON_KILL_PLAYER, 12 = ON_GIVE_XP, 27 = ON_UPDATE_ZONE
+RegisterPlayerEvent(6,  OnKillPlayer)
+RegisterPlayerEvent(12, OnGiveXP)
+RegisterPlayerEvent(27, OnUpdateZone)
+RegisterPlayerEvent(3,  OnLogin)
 
 CreateLuaEvent(DecayTick, DC.DECAY_TICK_MS, 0)
+
+-- Sync everyone already online (script reload / server restart)
+for _, p in ipairs(GetPlayersInWorld()) do
+    SendFullState(p)
+end
 
 local zoneCount, lockedCount = 0, 0
 for _, z in pairs(DC.ZONES) do
