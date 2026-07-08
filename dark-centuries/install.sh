@@ -109,16 +109,27 @@ curl -fsSL "$BASE_RAW/lua/dark_centuries.lua" -o "$LUA_DIR/dark_centuries.lua" \
 ok "Deployed to $LUA_DIR/dark_centuries.lua"
 
 # ── 6. Client addon (best effort) ────────────────────────────
+# Client detection — same convention as wow-manage.sh: the chosen path is
+# cached in $SERVER_DIR/.wow_client_dir; trust that first, then search.
 WOW_CLIENT_DIR=""
-for base in /mnt/c /mnt/d; do
-    for p in "$base/Games/World of Warcraft 3.3.5a" "$base/Games/WoW-3.3.5a" \
-             "$base/WoW" "$base/Games/WoW" "$base"/Users/*/Desktop/WoW* \
-             "$base"/Users/*/Games/WoW*; do
-        if [ -f "$p/Wow.exe" ] || [ -f "$p/WoW.exe" ]; then
-            WOW_CLIENT_DIR="$p"; break 2
-        fi
+_cache="$SERVER_DIR/.wow_client_dir"
+if [ -f "$_cache" ]; then
+    _saved=$(cat "$_cache")
+    [ -d "$_saved" ] && WOW_CLIENT_DIR="$_saved"
+fi
+if [ -z "$WOW_CLIENT_DIR" ]; then
+    for pd in "$HOME/Games" "$HOME" /mnt/c/Games /mnt/d/Games /mnt/c /mnt/d; do
+        [ -d "$pd" ] || continue
+        for n in "World of Warcraft" "World of Warcraft 3.3.5a" "wow wotlk" "wotlk"                  "ChromieCraft_3.3.5a" "wow 3.3.5a" "wow-client-3.3.5a" "wow-client"                  "wow-wotlk-client" "WoW" "WoW-3.3.5a"; do
+            p="$pd/$n"
+            if [ -d "$p" ] && { [ -f "$p/Wow.exe" ] || [ -f "$p/wow.exe" ] ||                                 [ -f "$p/WoW.exe" ] || [ -d "$p/Interface" ]; }; then
+                WOW_CLIENT_DIR="$p"
+                echo "$WOW_CLIENT_DIR" > "$_cache" 2>/dev/null || true
+                break 2
+            fi
+        done
     done
-done
+fi
 
 if [ -n "$WOW_CLIENT_DIR" ]; then
     ADDON_DIR="$WOW_CLIENT_DIR/Interface/AddOns/DarkCenturies"

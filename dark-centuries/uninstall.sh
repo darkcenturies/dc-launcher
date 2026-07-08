@@ -84,10 +84,16 @@ else
 fi
 
 # ── 4. Client addon (best effort) ────────────────────────────
-for base in /mnt/c /mnt/d; do
-    for p in "$base/Games/World of Warcraft 3.3.5a" "$base/Games/WoW-3.3.5a" \
-             "$base/WoW" "$base/Games/WoW" "$base"/Users/*/Desktop/WoW* \
-             "$base"/Users/*/Games/WoW*; do
+_cache="$SERVER_DIR/.wow_client_dir"
+if [ -f "$_cache" ]; then
+    _saved=$(cat "$_cache")
+    if [ -d "$_saved/Interface/AddOns/DarkCenturies" ]; then
+        rm -rf "$_saved/Interface/AddOns/DarkCenturies" && ok "Client addon removed: $_saved"
+    fi
+fi
+for pd in "$HOME/Games" "$HOME" /mnt/c/Games /mnt/d/Games /mnt/c /mnt/d; do
+    for n in "World of Warcraft" "World of Warcraft 3.3.5a" "wow wotlk" "wotlk"              "ChromieCraft_3.3.5a" "wow 3.3.5a" "wow-client-3.3.5a" "wow-client"              "wow-wotlk-client" "WoW" "WoW-3.3.5a"; do
+        p="$pd/$n"
         if [ -d "$p/Interface/AddOns/DarkCenturies" ]; then
             rm -rf "$p/Interface/AddOns/DarkCenturies" && ok "Client addon removed: $p"
         fi
