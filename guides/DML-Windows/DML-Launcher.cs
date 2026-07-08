@@ -96,7 +96,7 @@ class SyncHostForm : Form
 class TrayApp : ApplicationContext
 {
     const string DISTRO   = "dml-arch";
-    const string VERSION  = "1.0.2";
+    const string VERSION  = "1.0a";  // stamped by CI on each build (Kalcor-style: 1.0a, 1.0b, ...)
 
     enum ServerDisplayState { Stopped, Running, Loading }
 
@@ -1026,10 +1026,31 @@ class TrayApp : ApplicationContext
         menu.Items.Add(exitItem);
     }
 
-    const string UpdateScriptUrl =
-        "https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/guides/DML-Windows/Install-DML.ps1";
-    const string UpdatePageUrl =
-        "https://github.com/darkcenturies/dc-launcher/blob/main/guides/DML-Windows/Install-DML.ps1";
+    const string LatestReleaseApiUrl =
+        "https://api.github.com/repos/darkcenturies/dc-launcher/releases/latest";
+    const string ReleasesPageUrl =
+        "https://github.com/darkcenturies/dc-launcher/releases/latest";
+
+    // Compare Kalcor-style versions: "1.0a" < "1.0b" < "1.0z" < "1.0aa".
+    // Numeric base compared first, then letter suffix by length, then lexically.
+    // Returns <0, 0, >0 like CompareTo; returns 0 if either side is unparseable.
+    static int KalcorCompare(string a, string b)
+    {
+        var re = new System.Text.RegularExpressions.Regex(@"^v?([\d.]+?)\.?([a-z]*)$");
+        var ma = re.Match(a.Trim().ToLowerInvariant());
+        var mb = re.Match(b.Trim().ToLowerInvariant());
+        Version va, vb;
+        if (!ma.Success || !mb.Success) return 0;
+        string baseA = ma.Groups[1].Value, baseB = mb.Groups[1].Value;
+        if (!baseA.Contains(".")) baseA += ".0";
+        if (!baseB.Contains(".")) baseB += ".0";
+        if (!Version.TryParse(baseA, out va) || !Version.TryParse(baseB, out vb)) return 0;
+        int cmp = va.CompareTo(vb);
+        if (cmp != 0) return cmp;
+        string sa = ma.Groups[2].Value, sb = mb.Groups[2].Value;
+        if (sa.Length != sb.Length) return sa.Length - sb.Length;
+        return string.CompareOrdinal(sa, sb);
+    }
 
     // Notify-only by design: this checks and compares versions automatically,
     // but never downloads-and-executes anything itself. Install-DML.ps1 needs
@@ -1040,15 +1061,15 @@ class TrayApp : ApplicationContext
         DeferCloseMenu();
         SetTrayProgress("Checking for updates...");
         System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-            string versionLine;
+            string releaseJson;
             try
             {
                 // .NET Framework doesn't always enable TLS 1.2 by default; GitHub requires it.
                 System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
                 using (var wc = new System.Net.WebClient())
                 {
-                    wc.Headers.Add("User-Agent", "DML-Launcher");
-                    versionLine = wc.DownloadString(UpdateScriptUrl);
+                    wc.Headers.Add("User-Agent", "DC-Launcher");
+                    releaseJson = wc.DownloadString(LatestReleaseApiUrl);
                 }
             }
             catch (Exception ex)
@@ -1062,11 +1083,8 @@ class TrayApp : ApplicationContext
             }
 
             var match = System.Text.RegularExpressions.Regex.Match(
-                versionLine, @"\$DmlCliVersion\s*=\s*'([\d.]+)'");
-            Version remoteVersion, localVersion;
-            if (!match.Success
-                || !Version.TryParse(match.Groups[1].Value, out remoteVersion)
-                || !Version.TryParse(VERSION, out localVersion))
+                releaseJson, "\"tag_name\"\\s*:\\s*\"v?([^\"]+)\"");
+            if (!match.Success)
             {
                 PostToUi(delegate {
                     RefreshTrayFromStatus();
@@ -1078,7 +1096,7 @@ class TrayApp : ApplicationContext
 
             string remoteVersionStr = match.Groups[1].Value;
 
-            if (remoteVersion.CompareTo(localVersion) <= 0)
+            if (KalcorCompare(remoteVersionStr, VERSION) <= 0)
             {
                 PostToUi(delegate {
                     RefreshTrayFromStatus();
@@ -1092,14 +1110,14 @@ class TrayApp : ApplicationContext
                 RefreshTrayFromStatus();
                 DialogResult result = MessageBox.Show(
                     "A newer version is available: v" + remoteVersionStr + " (you have v" + VERSION + ").\n\n"
-                    + "Updating means downloading and re-running Install-DML.ps1 yourself (it needs "
-                    + "Administrator rights) -- same as the original install. Your servers and their "
-                    + "data are not touched, only the Windows-side install and this launcher.\n\n"
-                    + "Open the installer's page on GitHub now?",
+                    + "Download the new DC-Launcher.exe from the releases page and run it — "
+                    + "it detects your existing install and offers to update in place. Your "
+                    + "servers and their data are not touched.\n\n"
+                    + "Open the releases page on GitHub now?",
                     "Update Available", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (result != DialogResult.Yes) return;
 
-                try { Process.Start(new ProcessStartInfo(UpdatePageUrl) { UseShellExecute = true }); }
+                try { Process.Start(new ProcessStartInfo(ReleasesPageUrl) { UseShellExecute = true }); }
                 catch (Exception ex)
                 {
                     MessageBox.Show("[error] Could not open the page: " + ex.Message,

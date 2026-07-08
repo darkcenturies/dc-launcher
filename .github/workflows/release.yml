@@ -2,8 +2,8 @@ name: Build & Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -15,6 +15,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version (Kalcor-style letters)
+        id: ver
+        shell: bash
+        run: |
+          # 1.0a, 1.0b, ... 1.0z, 1.0aa, 1.0ab, ... — one letter per commit.
+          # OFFSET pins the first auto-versioned commit to "a".
+          OFFSET=13
+          COUNT=$(git rev-list --count HEAD)
+          IDX=$((COUNT - OFFSET))
+          if [ "$IDX" -lt 1 ]; then IDX=1; fi
+          SUFFIX=""
+          N=$IDX
+          while [ "$N" -gt 0 ]; do
+            N=$((N - 1))
+            SUFFIX=$(printf "\\$(printf '%03o' $((97 + N % 26)))")$SUFFIX
+            N=$((N / 26))
+          done
+          VERSION="1.0$SUFFIX"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION (commit #$COUNT)"
+
+      - name: Stamp version into source
+        shell: bash
+        run: |
+          sed -i "s/const string VERSION  = \"[^\"]*\";/const string VERSION  = \"${{ steps.ver.outputs.version }}\";/" \
+            guides/DML-Windows/DML-Launcher.cs
+          grep 'const string VERSION' guides/DML-Windows/DML-Launcher.cs
 
       - name: Compile DC-Launcher.exe
         shell: cmd
@@ -30,10 +60,12 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: v${{ steps.ver.outputs.version }}
           files: DC-Launcher.exe
           generate_release_notes: false
           body: |
-            ## ${{ github.ref_name }}
+            ## v${{ steps.ver.outputs.version }}
 
             **Download `DC-Launcher.exe` below and run it. That is all.**
 
