@@ -96,7 +96,7 @@ class SyncHostForm : Form
 class TrayApp : ApplicationContext
 {
     const string DISTRO   = "dml-arch";
-    const string VERSION  = "1.0a";  // stamped by CI on each build (Kalcor-style: 1.0a, 1.0b, ...)
+    const string VERSION  = "0.1a";  // stamped by CI each build (Kalcor system: see VERSIONING.md)
 
     enum ServerDisplayState { Stopped, Running, Loading }
 
@@ -1031,12 +1031,14 @@ class TrayApp : ApplicationContext
     const string ReleasesPageUrl =
         "https://github.com/darkcenturies/dc-launcher/releases/latest";
 
-    // Compare Kalcor-style versions: "1.0a" < "1.0b" < "1.0z" < "1.0aa".
-    // Numeric base compared first, then letter suffix by length, then lexically.
-    // Returns <0, 0, >0 like CompareTo; returns 0 if either side is unparseable.
+    // Compare Kalcor-style versions (SA-MP system):
+    //   0.1a RC1 < 0.1a RC2 < 0.1a < 0.1a R2 < 0.1a R3 < 0.1b < 0.2a
+    // Accepts "0.1a R2", "v0.1a-R2", "0.1b RC1". A plain release counts
+    // as R1. Returns <0, 0, >0 like CompareTo; 0 if either is unparseable.
     static int KalcorCompare(string a, string b)
     {
-        var re = new System.Text.RegularExpressions.Regex(@"^v?([\d.]+?)\.?([a-z]*)$");
+        var re = new System.Text.RegularExpressions.Regex(
+            @"^v?([\d.]+?)\.?([a-z]*)(?:[ \-]+(rc?)(\d+))?$");
         var ma = re.Match(a.Trim().ToLowerInvariant());
         var mb = re.Match(b.Trim().ToLowerInvariant());
         Version va, vb;
@@ -1049,7 +1051,16 @@ class TrayApp : ApplicationContext
         if (cmp != 0) return cmp;
         string sa = ma.Groups[2].Value, sb = mb.Groups[2].Value;
         if (sa.Length != sb.Length) return sa.Length - sb.Length;
-        return string.CompareOrdinal(sa, sb);
+        cmp = string.CompareOrdinal(sa, sb);
+        if (cmp != 0) return cmp;
+        // Same letter version: RC (stage 0) < final/R (stage 1); R1 == plain.
+        int stageA = 1, numA = 1, stageB = 1, numB = 1;
+        if (ma.Groups[3].Value == "rc") stageA = 0;
+        if (mb.Groups[3].Value == "rc") stageB = 0;
+        if (ma.Groups[4].Success) int.TryParse(ma.Groups[4].Value, out numA);
+        if (mb.Groups[4].Success) int.TryParse(mb.Groups[4].Value, out numB);
+        if (stageA != stageB) return stageA - stageB;
+        return numA - numB;
     }
 
     // Notify-only by design: this checks and compares versions automatically,

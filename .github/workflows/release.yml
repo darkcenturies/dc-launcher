@@ -18,26 +18,38 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Compute version (Kalcor-style letters)
+      - name: Compute version (Kalcor system)
         id: ver
         shell: bash
         run: |
-          # 1.0a, 1.0b, ... 1.0z, 1.0aa, 1.0ab, ... — one letter per commit.
-          # OFFSET pins the first auto-versioned commit to "a".
-          OFFSET=13
-          COUNT=$(git rev-list --count HEAD)
-          IDX=$((COUNT - OFFSET))
-          if [ "$IDX" -lt 1 ]; then IDX=1; fi
-          SUFFIX=""
-          N=$IDX
-          while [ "$N" -gt 0 ]; do
-            N=$((N - 1))
-            SUFFIX=$(printf "\\$(printf '%03o' $((97 + N % 26)))")$SUFFIX
-            N=$((N / 26))
-          done
-          VERSION="1.0$SUFFIX"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION (commit #$COUNT)"
+          # Base version comes from the VERSION file (e.g. "0.1a" or "0.1b RC").
+          # Commits since VERSION last changed become R revisions / RC numbers:
+          #   1st build of "0.1a"  -> 0.1a
+          #   2nd build            -> 0.1a R2
+          #   1st build of "0.1b RC" -> 0.1b RC1 (pre-release)
+          BASE=$(tr -d '\r\n' < VERSION)
+          LAST_CHANGE=$(git log -1 --format=%H -- VERSION)
+          N=$(git rev-list --count "$LAST_CHANGE..HEAD")
+          BUILD=$((N + 1))
+          PRERELEASE=false
+          case "$BASE" in
+            *" RC")
+              VER="${BASE}${BUILD}"
+              PRERELEASE=true
+              ;;
+            *)
+              if [ "$BUILD" -eq 1 ]; then
+                VER="$BASE"
+              else
+                VER="$BASE R$BUILD"
+              fi
+              ;;
+          esac
+          TAG="v${VER// /-}"
+          echo "version=$VER"        >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"            >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "Version: $VER  (tag $TAG, prerelease=$PRERELEASE)"
 
       - name: Stamp version into source
         shell: bash
@@ -60,12 +72,13 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.ver.outputs.version }}
-          name: v${{ steps.ver.outputs.version }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.version }}
+          prerelease: ${{ steps.ver.outputs.prerelease }}
           files: DC-Launcher.exe
           generate_release_notes: false
           body: |
-            ## v${{ steps.ver.outputs.version }}
+            ## ${{ steps.ver.outputs.version }}
 
             **Download `DC-Launcher.exe` below and run it. That is all.**
 
@@ -84,5 +97,5 @@ jobs:
             ### Uninstall
             Settings → Apps → DC Launcher → Uninstall
 
-            ### Source
-            Compiled from [`guides/DML-Windows/DML-Launcher.cs`](guides/DML-Windows/DML-Launcher.cs)
+            ### Versioning
+            See [VERSIONING.md](VERSIONING.md) — letter releases, R revisions, RC pre-releases.
