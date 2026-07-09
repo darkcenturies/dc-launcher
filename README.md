@@ -87,7 +87,62 @@ Right-click tray → Extras → Import Backup. Drop any `.sql.gz`, `.zip`, or `.
 - 600–800 Playerbots that level, run dungeons, and stock the Auction House
 - Windows system tray app to start, stop, backup, and manage your server
 - LAN support so other PCs on your network can connect
-- Optional: [Unbound Wrath](guides/unbound-wrath/) — cross-class abilities on top of WotLK
+- **World of Warcraft: Dark Centuries** — a faction territory war across all of Azeroth (see below)
+- Optional: AI-chatting bots via a local LLM ([mod-ollama-chat](https://github.com/DustinHendrickson/mod-ollama-chat) + Ollama) — whisper bots, make friends, they remember you
+
+---
+
+## World of Warcraft: Dark Centuries
+
+A server-wide faction territory war, playable solo or with hundreds of playerbots.
+Server side is an Eluna Lua script; client side is a bundled WoW addon.
+Install/uninstall from the tray: **Extras → Dark Centuries**.
+
+### The world
+
+- **45 zones tracked** across Eastern Kingdoms and Kalimdor:
+  - **15 Alliance home zones** (locked — can never be fought for): Elwynn Forest, Dun Morogh, Westfall, Redridge, Duskwood, Loch Modan, Wetlands, Stormwind, Ironforge, Teldrassil, Darkshore, Darnassus, Azuremyst, Bloodmyst, The Exodar
+  - **11 Horde home zones** (locked): Durotar, Mulgore, The Barrens, Orgrimmar, Thunder Bluff, Tirisfal, Silverpine, Undercity, Eversong Woods, Ghostlands, Silvermoon
+  - **19 contested warfronts** (capturable): Hillsbrad, Alterac, Arathi, Hinterlands, Western/Eastern Plaguelands, Badlands, Searing Gorge, Burning Steppes, Redridge front… plus Ashenvale, Stonetalon, Desolace, Thousand Needles, Feralas, Dustwallow, Azshara, Felwood
+- **7 truly neutral zones** sit outside the war entirely (no tint, no capture, no bonuses): Moonglade, Stranglethorn Vale, Tanaris, Winterspring, Un'Goro Crater, Silithus, Deadwind Pass
+
+### Capture mechanics
+
+- **1 PvP kill = 1%** — each cross-faction player kill in a contested zone moves that zone's control meter one point toward the killer's faction (playerbot kills count: bots are players)
+- A zone converts at **≤30% (Alliance)** or **≥70% (Horde)**; between those it's contested
+- **No decay** — progress never depletes on its own, so solo campaigns stick; zones only move through kills or the war pulse
+- **Autonomous war pulse** — every 3 minutes each contested zone has a 35% chance to shift 1–2% in a random direction, simulating off-screen battles, so front lines move even with nobody watching
+- **Zone flips are server-wide news** — a colored announcement with the zone's total capture count
+- After each kill the killer sees a colored capture bar with the zone's current split
+
+### Rewards & feedback
+
+- **+25% kill XP while in any zone your faction controls — including your own home zones**, so leveling in friendly territory is genuinely faster
+- **Territory buff** — a visible aura (Essence of Wintergrasp) marks that you're in friendly-controlled territory; it appears/disappears live as you cross borders or zones flip
+- The realm runs **PvP GameType** — everyone auto-flags in contested territory, and playerbots run an attack-on-sight PvP strategy with built-in self-preservation
+
+### The territory map (client addon)
+
+- **GTA:SA-style control overlay** on both continent maps: every zone tinted in its exact landmass shape — blue Alliance, red Horde, purple contested
+- **Leaning contested zones pulse** between purple and the leading faction's color; pulse depth scales with the margin (52% barely shimmers, 69% throbs)
+- **Hover any zone** for a colored status line: Alliance / Horde / Contested with the live % split / Neutral
+- Color legend on the map; state survives `/reload` (SavedVariables) with a 20-second server resync as backup
+- Slash commands: `/dc status` (faction totals + contested breakdown), `/dc map`, `/dc debug`
+
+### Admin commands (GM level 3)
+
+| Command | Effect |
+|---|---|
+| `.dc status` | Zone-by-zone control report |
+| `.dc randomize` | Advance the war — zones captured/contested at random states |
+| `.dc reset` | All contested zones back to even (50) |
+| `.dc set <zoneId> <pct>` | Set a zone's meter directly (0 = Alliance … 100 = Horde) |
+| `.dc war` | Fire one war pulse immediately |
+
+### Persistence
+
+- All zone state lives in the world DB (`dc_zone_control`) and survives restarts
+- Clients sync on login, on zone change, on every change, plus a periodic full resync
 
 ---
 
