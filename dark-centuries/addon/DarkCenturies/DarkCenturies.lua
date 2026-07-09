@@ -18,7 +18,7 @@ DC.H = 2  -- Horde
 DC.zoneState = {}
 
 DC.COLOR = {
-    [DC.N] = { r = 0.95, g = 0.72, b = 0.10 },  -- amber   contested
+    [DC.N] = { r = 0.62, g = 0.22, b = 0.90 },  -- purple  contested
     [DC.A] = { r = 0.20, g = 0.45, b = 0.95 },  -- blue    Alliance
     [DC.H] = { r = 0.90, g = 0.15, b = 0.10 },  -- red     Horde
 }
@@ -34,7 +34,7 @@ DC.ADD_COLOR = {
 }
 
 DC.FACTION_TEXT = {
-    [DC.N] = "|cffFFCC00Contested|r",
+    [DC.N] = "|cffB84DFFContested|r",
     [DC.A] = "|cff4477FFAlliance|r",
     [DC.H] = "|cffFF4444Horde|r",
 }
@@ -139,6 +139,13 @@ end
 local function NameKey(n)
     return string.lower(string.gsub(n or "", "[^%a]", ""))
 end
+
+-- Truly neutral zones: shown grey on hover, no overlay, no capture
+DC.NEUTRAL_NAMES = {
+    ["moonglade"] = true, ["stranglethornvale"] = true, ["tanaris"] = true,
+    ["winterspring"] = true, ["ungorocrater"] = true, ["silithus"] = true,
+    ["deadwindpass"] = true,
+}
 
 -- Probe points inside a zone's rect (fractions of the rect)
 local RECT_PROBES = {
@@ -247,7 +254,7 @@ end
 -- ── Legend on the world map ───────────────────────────────────
 local legend = overlayParent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 legend:SetPoint("BOTTOMLEFT", WorldMapDetailFrame, "BOTTOMLEFT", 8, 6)
-legend:SetText("|cffFFD700Dark Centuries:|r |cff4477FFAlliance|r  |cffFF4444Horde|r  |cffFFCC00Contested|r")
+legend:SetText("|cffFFD700Dark Centuries:|r |cff4477FFAlliance|r  |cffFF4444Horde|r  |cffB84DFFContested|r  |cffAAAAAANeutral|r")
 legend:Hide()
 
 local function RefreshLegend()
@@ -258,6 +265,42 @@ local function RefreshLegend()
         legend:Hide()
     end
 end
+
+-- ── Hover status line ────────────────────────────────────────
+-- Colored control status under the hovered zone's name
+local hoverStatus = WorldMapButton:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+hoverStatus:SetPoint("TOP", WorldMapFrameAreaLabel, "BOTTOM", 0, -4)
+hoverStatus:Hide()
+
+-- name (lowercased letters only) -> zoneId, for hover lookup
+local nameToZone = {}
+for zoneId, m in pairs(DC.MAP) do
+    nameToZone[NameKey(m.name)] = zoneId
+end
+
+WorldMapButton:HookScript("OnUpdate", function()
+    local label = WorldMapFrameAreaLabel:GetText()
+    if not label or label == "" then hoverStatus:Hide(); return end
+    local key = NameKey(label)
+    if DC.NEUTRAL_NAMES[key] then
+        hoverStatus:SetText("|cffAAAAAANeutral|r")
+        hoverStatus:Show()
+        return
+    end
+    local zoneId = nameToZone[key]
+    local st = zoneId and DC.zoneState[zoneId]
+    if st then
+        if st.faction == DC.N then
+            hoverStatus:SetText(string.format("|cffB84DFFContested|r  |cff4477FF%d%%|r / |cffFF4444%d%%|r",
+                100 - st.progress, st.progress))
+        else
+            hoverStatus:SetText(DC.FACTION_TEXT[st.faction])
+        end
+        hoverStatus:Show()
+    else
+        hoverStatus:Hide()
+    end
+end)
 
 -- ── Server messages ───────────────────────────────────────────
 -- "ZONE|zoneId|faction|progress"
