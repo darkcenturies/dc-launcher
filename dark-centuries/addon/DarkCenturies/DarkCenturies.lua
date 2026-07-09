@@ -112,23 +112,19 @@ local overlayParent = CreateFrame("Frame", "DarkCenturiesOverlayFrame", WorldMap
 overlayParent:SetAllPoints(WorldMapDetailFrame)
 overlayParent:SetFrameLevel(WorldMapDetailFrame:GetFrameLevel() + 1)
 
--- Leaning contested zones breathe between purple and the leading
--- faction's color. Pulse depth scales with how hard the lean is:
--- 51% barely shimmers, 69% swings almost fully red/blue.
+-- Leaning contested zones breathe the leading faction's color in and
+-- out of transparency. Pulse depth scales with the margin: 51% is a
+-- near-invisible flicker, 69% surges strongly red/blue. Zones at an
+-- even 50/50 draw nothing at all.
 DC.pulse = {}
 overlayParent:SetScript("OnUpdate", function()
     local n = #DC.pulse
     if n == 0 then return end
-    local base = DC.COLOR[DC.N]
     local t = (math.sin(GetTime() * 2.2) + 1) * 0.5
     for i = 1, n do
         local e = DC.pulse[i]
-        local m = t * e.amount
-        e.tex:SetVertexColor(
-            base.r + (e.lean.r - base.r) * m,
-            base.g + (e.lean.g - base.g) * m,
-            base.b + (e.lean.b - base.b) * m,
-            e.alpha)
+        e.tex:SetVertexColor(e.lean.r, e.lean.g, e.lean.b,
+            e.alpha * e.amount * (0.25 + 0.75 * t))
     end
 end)
 
@@ -190,9 +186,18 @@ local function RefreshOverlays()
     for order = 1, #DC.DRAW_ORDER do
         local zoneId = DC.DRAW_ORDER[order]
         local m = DC.MAP[zoneId]
-        if m.c == cont and DC.zoneState[zoneId] then
-            local s = DC.zoneState[zoneId]
-            local col = DC.COLOR[s.faction] or DC.COLOR[DC.N]
+        -- Even contested zones (50/50) get no tint at all — same as
+        -- neutral. Leaning ones paint the leading faction's color,
+        -- which the pulse driver breathes in and out.
+        local st0 = DC.zoneState[zoneId]
+        if m.c == cont and st0 and (st0.faction ~= DC.N or st0.progress ~= 50) then
+            local s = st0
+            local col
+            if s.faction == DC.N then
+                col = (s.progress > 50) and DC.COLOR[DC.H] or DC.COLOR[DC.A]
+            else
+                col = DC.COLOR[s.faction]
+            end
             local o = GetOverlay(zoneId, math.min(7, math.floor(order / 8)))
             local wantKey = NameKey(m.name)
             local shaped = false
@@ -256,12 +261,12 @@ local function RefreshOverlays()
                 DC.lastRect = DC.lastRect + 1
             end
 
-            -- Leaning contested zones pulse toward the leading
-            -- faction's color (exact % still shows on hover)
-            if s.faction == DC.N and s.progress ~= 50 then
+            -- Leaning contested zones pulse the leading faction's
+            -- color (exact % still shows on hover)
+            if s.faction == DC.N then
                 table.insert(DC.pulse, {
                     tex    = o.tex,
-                    lean   = (s.progress > 50) and DC.COLOR[DC.H] or DC.COLOR[DC.A],
+                    lean   = col,
                     amount = math.min(1, math.abs(s.progress - 50) / 20),
                     alpha  = shaped and 0.6 or DC.ALPHA,
                 })
@@ -273,7 +278,7 @@ end
 -- ── Legend on the world map ───────────────────────────────────
 local legend = overlayParent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 legend:SetPoint("BOTTOMLEFT", WorldMapDetailFrame, "BOTTOMLEFT", 8, 6)
-legend:SetText("|cffFFD700Dark Centuries:|r |cff4477FFAlliance|r  |cffFF4444Horde|r  |cffB84DFFContested|r  |cffAAAAAANeutral|r")
+legend:SetText("|cffFFD700Dark Centuries:|r |cff4477FFAlliance|r  |cffFF4444Horde|r  pulsing = contested lean  |cffAAAAAAplain = even / neutral|r")
 legend:Hide()
 
 local function RefreshLegend()
