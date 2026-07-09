@@ -21,60 +21,60 @@ DC.N = 0  -- Neutral / contested
 -- ── The world map (GTA:SA style — every zone has an owner) ──
 -- [area_id] = { name, locked = DC.A/DC.H (home turf, can never flip) }
 DC.ZONES = {
-    -- Eastern Kingdoms
+    -- Eastern Kingdoms — Alliance territory (locked, cannot be fought for)
     [1]    = { name = "Dun Morogh",            locked = DC.A },
+    [11]   = { name = "Wetlands",              locked = DC.A },
+    [10]   = { name = "Duskwood",              locked = DC.A },
+    [12]   = { name = "Elwynn Forest",         locked = DC.A },
+    [38]   = { name = "Loch Modan",            locked = DC.A },
+    [40]   = { name = "Westfall",              locked = DC.A },
+    [44]   = { name = "Redridge Mountains",    locked = DC.A },
+    [1519] = { name = "Stormwind City",        locked = DC.A },
+    [1537] = { name = "Ironforge",             locked = DC.A },
+    -- Eastern Kingdoms — Horde territory (locked)
+    [85]   = { name = "Tirisfal Glades",       locked = DC.H },
+    [130]  = { name = "Silverpine Forest",     locked = DC.H },
+    [1497] = { name = "Undercity",             locked = DC.H },
+    [3430] = { name = "Eversong Woods",        locked = DC.H },
+    [3433] = { name = "Ghostlands",            locked = DC.H },
+    [3487] = { name = "Silvermoon City",       locked = DC.H },
+    -- Eastern Kingdoms — contested warfronts (capturable via PvP)
     [3]    = { name = "Badlands" },
     [4]    = { name = "Blasted Lands" },
     [8]    = { name = "Swamp of Sorrows" },
-    [10]   = { name = "Duskwood" },
-    [11]   = { name = "Wetlands" },
-    [12]   = { name = "Elwynn Forest",         locked = DC.A },
     [28]   = { name = "Western Plaguelands" },
-    [33]   = { name = "Stranglethorn Vale" },
     [36]   = { name = "Alterac Mountains" },
-    [38]   = { name = "Loch Modan" },
-    [40]   = { name = "Westfall" },
-    [41]   = { name = "Deadwind Pass" },
-    [44]   = { name = "Redridge Mountains" },
     [45]   = { name = "Arathi Highlands" },
     [46]   = { name = "Burning Steppes" },
     [47]   = { name = "The Hinterlands" },
     [51]   = { name = "Searing Gorge" },
-    [85]   = { name = "Tirisfal Glades",       locked = DC.H },
-    [130]  = { name = "Silverpine Forest" },
     [139]  = { name = "Eastern Plaguelands" },
     [267]  = { name = "Hillsbrad Foothills" },
-    [1497] = { name = "Undercity",             locked = DC.H },
-    [1519] = { name = "Stormwind City",        locked = DC.A },
-    [1537] = { name = "Ironforge",             locked = DC.A },
-    [3430] = { name = "Eversong Woods",        locked = DC.H },
-    [3433] = { name = "Ghostlands",            locked = DC.H },
-    [3487] = { name = "Silvermoon City",       locked = DC.H },
-    -- Kalimdor
+    -- Kalimdor — Alliance territory (locked)
+    [141]  = { name = "Teldrassil",            locked = DC.A },
+    [148]  = { name = "Darkshore",             locked = DC.A },
+    [1657] = { name = "Darnassus",             locked = DC.A },
+    [3524] = { name = "Azuremyst Isle",        locked = DC.A },
+    [3525] = { name = "Bloodmyst Isle",        locked = DC.A },
+    [3557] = { name = "The Exodar",            locked = DC.A },
+    -- Kalimdor — Horde territory (locked)
     [14]   = { name = "Durotar",               locked = DC.H },
+    [17]   = { name = "The Barrens",           locked = DC.H },
+    [215]  = { name = "Mulgore",               locked = DC.H },
+    [1637] = { name = "Orgrimmar",             locked = DC.H },
+    [1638] = { name = "Thunder Bluff",         locked = DC.H },
+    -- Kalimdor — contested warfronts (capturable via PvP)
     [15]   = { name = "Dustwallow Marsh" },
     [16]   = { name = "Azshara" },
-    [17]   = { name = "The Barrens" },
-    [141]  = { name = "Teldrassil",            locked = DC.A },
-    [148]  = { name = "Darkshore" },
-    [215]  = { name = "Mulgore",               locked = DC.H },
     [331]  = { name = "Ashenvale" },
     [357]  = { name = "Feralas" },
     [361]  = { name = "Felwood" },
     [400]  = { name = "Thousand Needles" },
     [405]  = { name = "Desolace" },
     [406]  = { name = "Stonetalon Mountains" },
-    [440]  = { name = "Tanaris" },
-    [490]  = { name = "Un'Goro Crater" },
-    [493]  = { name = "Moonglade" },
-    [618]  = { name = "Winterspring" },
-    [1377] = { name = "Silithus" },
-    [1637] = { name = "Orgrimmar",             locked = DC.H },
-    [1638] = { name = "Thunder Bluff",         locked = DC.H },
-    [1657] = { name = "Darnassus",             locked = DC.A },
-    [3524] = { name = "Azuremyst Isle",        locked = DC.A },
-    [3525] = { name = "Bloodmyst Isle",        locked = DC.A },
-    [3557] = { name = "The Exodar",            locked = DC.A },
+    -- Truly neutral zones take no part in the war and are not listed:
+    -- Moonglade, Stranglethorn Vale, Tanaris, Winterspring, Un'Goro
+    -- Crater, Silithus, Deadwind Pass
 }
 
 -- ── State ────────────────────────────────────────────────────
