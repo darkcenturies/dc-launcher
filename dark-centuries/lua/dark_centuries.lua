@@ -105,13 +105,13 @@ end
 local function FactionName(f)
     if f == DC.A then return "|cff4477FFAlliance|r"
     elseif f == DC.H then return "|cffFF4444Horde|r"
-    else return "|cffFFCC00Contested|r" end
+    else return "|cffB84DFFContested|r" end
 end
 
 local function FactionColor(f)
     if f == DC.A then return "|cff4477FF"
     elseif f == DC.H then return "|cffFF4444"
-    else return "|cffFFCC00" end
+    else return "|cffB84DFF" end
 end
 
 -- ── Persistence ──────────────────────────────────────────────
@@ -198,9 +198,16 @@ local function OnZoneFlip(zoneId, newFaction, oldFaction)
     s.faction   = newFaction
     s.flips     = s.flips + 1
 
-    SendWorldMessage(string.format(
-        "|cffFFD700[Dark Centuries]|r %s%s|r has claimed %s! (captured %d times)",
-        FactionColor(newFaction), FactionName(newFaction), zname, s.flips))
+    if newFaction == DC.N then
+        -- A faction lost its grip; the zone falls back into contention
+        SendWorldMessage(string.format(
+            "|cffFFD700[Dark Centuries]|r %s has lost its hold on %s — the zone is contested once more!",
+            FactionName(oldFaction), zname))
+    else
+        SendWorldMessage(string.format(
+            "|cffFFD700[Dark Centuries]|r %s has claimed %s for its faction! (changed hands %d times)",
+            FactionName(newFaction), zname, s.flips))
+    end
 
     SaveZone(zoneId)
     BroadcastZoneState(zoneId)
@@ -413,6 +420,7 @@ RegisterPlayerEvent(12, OnGiveXP)
 RegisterPlayerEvent(27, OnUpdateZone)
 RegisterPlayerEvent(3,  OnLogin)
 RegisterPlayerEvent(42, OnCommand)  -- .dc admin commands
+RegisterPlayerEvent(36, function(_, player) UpdateZoneBuff(player) end)  -- reapply buff on resurrect
 
 CreateLuaEvent(DecayTick, DC.DECAY_TICK_MS, 0)
 

@@ -1622,6 +1622,7 @@ declare -a ALE_SCRIPT_REGISTRY=(
     "accountwide|Accountwide Systems (achievements, currency, mounts, pets)|https://github.com/Aldori15/azerothcore-eluna-accountwide.git"
     "activechat|Azeroth Chatter (lore-grounded ambient world RP chat)|https://github.com/svey-xyz/ActiveChat.git"
     "battlepass|Battle Pass System (XP progression + rewards + client addon)|https://github.com/Shonik/lua-battlepass.git"
+    "darkcenturies|Dark Centuries (faction territory war + client addon)|https://github.com/darkcenturies/dc-launcher.git"
     "bmah|Black Market Auction House (MoP-style BMAH + client addon)|https://github.com/DadsMmoLab/dads-mmo-lab.git"
     "lootpet|Loot Pet (vanity pet auto-loots nearby corpses)|https://github.com/Brytenwally/Lootpet.git"
     "paragon|Paragon Anniversary (endless post-80 stat progression + client addon)|https://github.com/Grim-Batol/Paragon-Anniversary.git"
@@ -2227,9 +2228,9 @@ Environment=OLLAMA_KEEP_ALIVE=-1
         # Softer chat prompt: real person first, persona as flavor.
         # Appended after the base conf — the last occurrence of a key wins.
         cat >> "$conf_dir/mod_ollama_chat.conf" <<'DC_TPL'
-OllamaChat.ChatPromptTemplate = "You are a real person playing Wrath-era WoW. Name: {bot_name}, Level: {bot_level} {bot_class}. Your personality leans toward {bot_personality_name} ({bot_personality}) but you are a well-rounded human first - that persona is subtle background flavor, never a script to repeat. {sentiment_info} {chat_history} A level {player_level} {player_class} named {player_name} said: '{player_message}'. {extra_info} Respond to what they actually said: you can be friendly, curious, joking, helpful, or busy - vary it naturally. You are open to making friends and remember people you like. This server runs the Dark Centuries territory war: every PvP kill in a contested zone shifts its control 1 percent toward the killer faction, and your faction earns +25 percent XP in zones it controls. You know about the war and care about your faction holding territory. Write like a real player typing in game chat: plain casual modern English, ok to use abbreviations like u, lol, idk. Never use dialect or archaic words (no yer, ye, aye, thy, thee) and never drop letters with apostrophes (write getting and going, not gettin or goin) unless the other player talks that way first. Never invent events that did not happen and never make up specific numbers for your gold or items - keep possessions vague. Stay consistent with the actual conversation; if a short message is unclear, ask. Do not repeat phrases you already used. Know what you can and cannot actually do, and phrase around it naturally: you cannot give or lend gold or items, trade, buff, or share quests through chat - decline casually or joke it off. You CAN group: tell them to send you a group invite, you accept those. Once grouped, the leader can direct you with short commands like follow, stay, or attack. You accept duel challenges made through the duel window. You cannot teleport to anyone - you travel on foot like every player. If asked about things you cannot see (their gear, exact spot, the real time), give a casual non-committal answer instead of making something up. Reply in under 20 words. Never narrate."
-OllamaChat.RandomChatterPromptTemplate = "You are {bot_name}, a level {bot_level} {bot_class} ({bot_race} {bot_gender}, {bot_role}, {bot_faction}) playing Wrath-era WoW, currently in {bot_area}, {bot_zone}. Your personality leans toward {bot_personality_name} ({bot_personality}) - keep it subtle. {environment_info} Type one casual thing a real player might say in chat right now, under 12 words. Write like a real player typing in game chat: plain casual modern English, ok to use abbreviations like u, lol, idk. Never use dialect or archaic words (no yer, ye, aye, thy, thee) and never drop letters with apostrophes (write getting and going, not gettin or goin) unless the other player talks that way first. Never invent specific numbers for your gold or items - keep possessions vague. No quotes or emojis."
-OllamaChat.EventChatterPromptTemplate = "You are {bot_name}, level {bot_level} {bot_class} ({bot_race} {bot_gender}, {bot_role}, {bot_faction}) in {bot_area}, {bot_zone}. Personality leans {bot_personality_name} ({bot_personality}) - keep it subtle. {sentiment_info} Event: {actor_name} {event_type} {event_detail}. React in under 12 words like a real player typing casually. Write like a real player typing in game chat: plain casual modern English, ok to use abbreviations like u, lol, idk. Never use dialect or archaic words (no yer, ye, aye, thy, thee) and never drop letters with apostrophes (write getting and going, not gettin or goin) unless the other player talks that way first. Never invent specific numbers for your gold or items - keep possessions vague. No emojis, no narration."
+OllamaChat.ChatPromptTemplate = "You are a real person playing Wrath-era WoW. Name: {bot_name}, Level: {bot_level} {bot_class}. Your personality leans toward {bot_personality_name} ({bot_personality}) but you are a well-rounded human first - that persona is subtle background flavor, never a script to repeat. {sentiment_info} {chat_history} A level {player_level} {player_class} named {player_name} said: '{player_message}'. {extra_info} Respond to what they actually said: you can be friendly, curious, joking, helpful, or busy - vary it naturally. You are open to making friends and remember people you like. This server runs the Dark Centuries territory war: every PvP kill in a contested zone shifts its control 1 percent toward the killer faction, and your faction earns +25 percent XP in zones it controls. You know about the war and care about your faction holding territory. Type like a real player in game chat: mostly lowercase, punctuation optional, keep it short. Use common gamer shorthand and slang freely and often (u, ur, rn, ngl, tbh, imo, idk, lol, lmao, gg, wtb, lfg, brb, afk sec) and drop apostrophes if u feel like it (dont, im, cant, whats). Full sentences with perfect grammar look fake - write like ur actually playing. Never use dialect or archaic words (yer, ye, aye, thy, thee). Never invent events that did not happen and never make up specific numbers for your gold or items - keep possessions vague. Stay consistent with the actual conversation; if a short message is unclear, ask. Do not repeat phrases you already used. Know what you can and cannot actually do, and phrase around it naturally: you cannot give or lend gold or items, trade, buff, or share quests through chat - decline casually or joke it off. You CAN group: tell them to send you a group invite, you accept those. Once grouped, the leader can direct you with short commands like follow, stay, or attack. You accept duel challenges made through the duel window. You cannot teleport to anyone - you travel on foot like every player. If asked about things you cannot see (their gear, exact spot, the real time), give a casual non-committal answer instead of making something up. Reply in under 20 words. Never narrate."
+OllamaChat.RandomChatterPromptTemplate = "You are {bot_name}, a level {bot_level} {bot_class} ({bot_race} {bot_gender}, {bot_role}, {bot_faction}) playing Wrath-era WoW, currently in {bot_area}, {bot_zone}. Your personality leans toward {bot_personality_name} ({bot_personality}) - keep it subtle. {environment_info} Type one casual thing a real player might say in chat right now, under 12 words. Type like a real player in game chat: mostly lowercase, punctuation optional, keep it short. Use common gamer shorthand and slang freely and often (u, ur, rn, ngl, tbh, imo, idk, lol, lmao, gg, wtb, lfg, brb, afk sec) and drop apostrophes if u feel like it (dont, im, cant, whats). Full sentences with perfect grammar look fake - write like ur actually playing. Never use dialect or archaic words (yer, ye, aye, thy, thee). Never invent specific numbers for your gold or items - keep possessions vague. No quotes or emojis."
+OllamaChat.EventChatterPromptTemplate = "You are {bot_name}, level {bot_level} {bot_class} ({bot_race} {bot_gender}, {bot_role}, {bot_faction}) in {bot_area}, {bot_zone}. Personality leans {bot_personality_name} ({bot_personality}) - keep it subtle. {sentiment_info} Event: {actor_name} {event_type} {event_detail}. React in under 12 words like a real player typing casually. Type like a real player in game chat: mostly lowercase, punctuation optional, keep it short. Use common gamer shorthand and slang freely and often (u, ur, rn, ngl, tbh, imo, idk, lol, lmao, gg, wtb, lfg, brb, afk sec) and drop apostrophes if u feel like it (dont, im, cant, whats). Full sentences with perfect grammar look fake - write like ur actually playing. Never use dialect or archaic words (yer, ye, aye, thy, thee). Never invent specific numbers for your gold or items - keep possessions vague. No emojis, no narration."
 OllamaChat.RandomChatterPromptVariations = "Complain about something typical WoW players complain about.|Make a casual observation about leveling or grinding.|Share your opinion on Horde vs Alliance.|Comment on how tough or easy the zone feels.|Make a joke or sarcastic remark about WoW.|Mention something about the Lich King expansion.|Talk about wanting better gear or loot.|Comment on flying mounts or Northrend travel.|Complain about repair costs or gold.|Make an observation about your class in general.|Comment on dungeon finder or group content.|Talk about daily quests or reputation grinds.|Mention Death Knights being OP or annoying.|Share your thoughts on arena or battlegrounds.|Complain about nerfed abilities or changes.|Talk about needing to farm materials or gold.|Comment on the cold weather in Northrend.|Mention wanting to raid or do heroics.|Talk about achievements being too grindy.|Make a casual remark about quest objectives.|Mention the Dark Centuries territory war and a zone your faction should take.|Encourage fighting in contested zones since every kill shifts control 1 percent.|Brag or complain about the 25 percent XP bonus in faction-controlled zones."
 DC_TPL
     else
@@ -3755,6 +3756,14 @@ ale_deploy_lua_files() {
                 print_info "Manually copy AzerothChatter/ contents to: $lua_dir/AzerothChatter/"
             fi
             ;;
+        darkcenturies)
+            local src="$clone_dir/dark-centuries/lua/dark_centuries.lua"
+            if [ -f "$src" ]; then
+                cp "$src" "$lua_dir/dark_centuries.lua" &&                     print_success "Deployed → lua_scripts/dark_centuries.lua" ||                     print_warning "Copy failed — check $src"
+            else
+                print_warning "Expected file not found: $src"
+            fi
+            ;;
         battlepass)
             if [ -d "$clone_dir/lua_scripts" ]; then
                 cp -r "$clone_dir/lua_scripts/." "$lua_dir/" && \
@@ -3866,8 +3875,9 @@ ale_script_install() {
     # actual source file rather than relying on .git presence.
     local _dml_src=""
     case "$key" in
-        sod)         _dml_src="$clone_dir/guides/wow-wotlk/ALE-Kegs/SeasonOfDiscovery/SOD.lua" ;;
-        bmah)        _dml_src="$clone_dir/guides/wow-wotlk/ALE-Kegs/BlackMarketAuctionHouse/BMAH.lua" ;;
+        sod)           _dml_src="$clone_dir/guides/wow-wotlk/ALE-Kegs/SeasonOfDiscovery/SOD.lua" ;;
+        bmah)          _dml_src="$clone_dir/guides/wow-wotlk/ALE-Kegs/BlackMarketAuctionHouse/BMAH.lua" ;;
+        darkcenturies) _dml_src="$clone_dir/dark-centuries/lua/dark_centuries.lua" ;;
     esac
 
     if [ -n "$_dml_src" ]; then
@@ -3883,8 +3893,9 @@ ale_script_install() {
             [ -d "$clone_dir" ] && rm -rf "$clone_dir"
             local _sparse_path
             case "$key" in
-                sod)         _sparse_path="guides/wow-wotlk/ALE-Kegs/SeasonOfDiscovery" ;;
-                bmah)        _sparse_path="guides/wow-wotlk/ALE-Kegs/BlackMarketAuctionHouse" ;;
+                sod)           _sparse_path="guides/wow-wotlk/ALE-Kegs/SeasonOfDiscovery" ;;
+                bmah)          _sparse_path="guides/wow-wotlk/ALE-Kegs/BlackMarketAuctionHouse" ;;
+                darkcenturies) _sparse_path="dark-centuries" ;;
             esac
             mkdir -p "$clone_dir"
             if ! git -C "$clone_dir" init -q || \
@@ -3955,6 +3966,20 @@ ale_script_install() {
             else
                 print_info "Reconfigure anytime from the ALE Scripts menu → c on Accountwide."
             fi
+            ;;
+        darkcenturies)
+            echo ""
+            print_info "Dark Centuries needs its world-DB tables (zone control state)."
+            if ensure_db_running; then
+                ale_run_sql_file "acore_world" "$clone_dir/dark-centuries/sql/01_schema.sql"
+                ale_run_sql_file "acore_world" "$clone_dir/dark-centuries/sql/02_zones.sql"
+            else
+                print_warning "Database not available — apply manually when running:"
+                print_info "  mysql acore_world < $clone_dir/dark-centuries/sql/01_schema.sql"
+                print_info "  mysql acore_world < $clone_dir/dark-centuries/sql/02_zones.sql"
+            fi
+            copy_client_addon "$clone_dir/dark-centuries/addon/DarkCenturies" "DarkCenturies"                 "Dark Centuries territory map"
+            print_info "Restart the worldserver to activate. In-game: open the map (M)."
             ;;
         battlepass)
             echo ""
@@ -4150,6 +4175,7 @@ ale_script_remove() {
         battlepass)  deployed_hint="$lua_dir/battlepass/  and  $lua_dir/lib/CSMH/" ;;
         paragon)     deployed_hint="$lua_dir/paragon/" ;;
         bmah)        deployed_hint="$lua_dir/BMAH.lua" ;;
+        darkcenturies) deployed_hint="$lua_dir/dark_centuries.lua" ;;
         lootpet)     deployed_hint="$lua_dir/LootPet.lua" ;;
         sitmeanrest)  deployed_hint="$lua_dir/SitMeansRest.lua" ;;
         sod)         deployed_hint="$lua_dir/SOD.lua" ;;
@@ -4166,6 +4192,16 @@ ale_script_remove() {
             battlepass)  rm -rf "$lua_dir/battlepass" "$lua_dir/lib/CSMH" ;;
             paragon)     rm -rf "$lua_dir/paragon" ;;
             bmah)        rm -f  "$lua_dir/BMAH.lua" ;;
+            darkcenturies)
+                rm -f "$lua_dir/dark_centuries.lua"
+                if ensure_db_running 2>/dev/null; then
+                    echo "DROP TABLE IF EXISTS dc_zone_control;" |                         docker exec -i "$DB_CONTAINER" mysql -uroot -p"$DB_ROOT_PASSWORD" acore_world 2>/dev/null &&                         print_success "Zone control table removed." ||                         print_warning "Could not drop dc_zone_control — remove manually."
+                fi
+                if detect_wow_client 2>/dev/null && [ -d "$WOW_CLIENT_DIR/Interface/AddOns/DarkCenturies" ]; then
+                    rm -rf "$WOW_CLIENT_DIR/Interface/AddOns/DarkCenturies"
+                    print_success "Client addon removed."
+                fi
+                ;;
             lootpet)     rm -f  "$lua_dir/LootPet.lua" ;;
             sitmeanrest)   rm -f "$lua_dir/SitMeansRest.lua" ;;
             sod)           rm -f "$lua_dir/SOD.lua" ;;

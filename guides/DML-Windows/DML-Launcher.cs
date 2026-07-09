@@ -925,28 +925,6 @@ class TrayApp : ApplicationContext
         installItem.Click += delegate { ShowInstallDialog(); };
         extrasMenu.DropDownItems.Add(installItem);
 
-        var dcMenu = new ToolStripMenuItem("Dark Centuries");
-        var dcInstallItem = new ToolStripMenuItem("Install Dark Centuries");
-        dcInstallItem.Click += delegate {
-            DeferCloseMenu();
-            OpenLiveConsole(
-                "curl -fsSL 'https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/install.sh?cb=" + DateTime.UtcNow.Ticks + "' | bash",
-                "Install Dark Centuries");
-        };
-        var dcUninstallItem = new ToolStripMenuItem("Uninstall Dark Centuries");
-        dcUninstallItem.Click += delegate {
-            DeferCloseMenu();
-            if (MessageBox.Show(
-                    "This will remove the Dark Centuries Lua script and SQL data from your server.\n\nContinue?",
-                    "Uninstall Dark Centuries", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
-                return;
-            OpenLiveConsole(
-                "curl -fsSL 'https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/uninstall.sh?cb=" + DateTime.UtcNow.Ticks + "' | bash",
-                "Uninstall Dark Centuries");
-        };
-        dcMenu.DropDownItems.Add(dcInstallItem);
-        dcMenu.DropDownItems.Add(dcUninstallItem);
-        extrasMenu.DropDownItems.Add(dcMenu);
 
         var shellItem = new ToolStripMenuItem("Open DCL Shell");
         shellItem.Click += delegate { OpenTerminal("-d " + DISTRO); };
@@ -1570,22 +1548,6 @@ class TrayApp : ApplicationContext
             rbWotlk.Text    = "WotLK 3.3.5a — AzerothCore + Playerbots (new server)";
             rbWotlk.Left    = 16; rbWotlk.Top = 50; rbWotlk.Width = 400; rbWotlk.Checked = true;
 
-            var rbDC = new RadioButton();
-            rbDC.Text  = "Install Dark Centuries (zone control warfare plugin)";
-            rbDC.Left  = 16; rbDC.Top = 78; rbDC.Width = 400;
-
-            bool hasWotlk = LoadTitleCache().Length > 0;
-            bool dcInstalled = false;
-            if (hasWotlk)
-            {
-                try {
-                    string dc = WslRun("[ -f ~/games/wow-server-playerbots/env/dist/etc/modules/lua_scripts/dark_centuries.lua ] && echo yes || echo no");
-                    dcInstalled = dc.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase);
-                } catch { }
-            }
-            rbDC.Enabled = hasWotlk && !dcInstalled;
-            if (!rbDC.Enabled)
-                rbDC.Text += dcInstalled ? " (already installed)" : " (install WotLK first)";
 
             var note = new Label();
             note.Left = 16; note.Top = 112; note.Width = 400; note.Height = 36;
@@ -1600,20 +1562,15 @@ class TrayApp : ApplicationContext
             btnCancel.Text = "Cancel"; btnCancel.Left = 332; btnCancel.Top = 168;
             btnCancel.Width = 85; btnCancel.DialogResult = DialogResult.Cancel;
 
-            form.Controls.AddRange(new Control[] { lbl, rbWotlk, rbDC, note, btnInstall, btnCancel });
+            form.Controls.AddRange(new Control[] { lbl, rbWotlk, note, btnInstall, btnCancel });
             form.AcceptButton = btnInstall;
             form.CancelButton = btnCancel;
 
             if (form.ShowDialog() != DialogResult.OK) return;
 
-            if (rbWotlk.Checked)
-                DownloadAndRunInstaller(
+            DownloadAndRunInstaller(
                     "https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/guides/wow-wotlk/Install-WoW-WotLK.ps1",
                     "Install-WoW-WotLK.ps1");
-            else
-                OpenLiveConsole(
-                    "curl -fsSL 'https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/dark-centuries/install.sh?cb=" + DateTime.UtcNow.Ticks + "' | bash",
-                    "Install Dark Centuries");
         }
     }
 
