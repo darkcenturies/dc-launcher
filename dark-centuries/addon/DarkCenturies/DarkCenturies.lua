@@ -380,6 +380,48 @@ WorldMapFrame:HookScript("OnShow", function()
     RefreshLegend()
 end)
 
+-- ── World channel: the server's main chat hub ────────────────
+-- Auto-join shortly after login (channels aren't ready instantly),
+-- and provide /world as a direct alias for talking in it.
+local worldJoin = CreateFrame("Frame")
+local worldJoinElapsed, worldJoinDone = 0, false
+worldJoin:Hide()
+worldJoin:SetScript("OnUpdate", function(self, elapsed)
+    worldJoinElapsed = worldJoinElapsed + elapsed
+    if worldJoinElapsed < 5 then return end
+    self:Hide()
+    if not worldJoinDone then
+        worldJoinDone = true
+        if GetChannelName("World") == 0 then
+            JoinChannelByName("World")
+            print("|cffFFD700[Dark Centuries]|r Joined |cff88CC88World|r chat — talk with /world <message>.")
+        end
+    end
+end)
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")  -- already registered; harmless
+
+local worldJoinHook = frame:GetScript("OnEvent")
+frame:SetScript("OnEvent", function(self, event, ...)
+    if event == "PLAYER_ENTERING_WORLD" then
+        worldJoinElapsed = 0
+        worldJoin:Show()
+    end
+    worldJoinHook(self, event, ...)
+end)
+
+SLASH_DCWORLD1 = "/world"
+SLASH_DCWORLD2 = "/wo"
+SlashCmdList["DCWORLD"] = function(msg)
+    if not msg or msg == "" then return end
+    local id = GetChannelName("World")
+    if id and id > 0 then
+        SendChatMessage(msg, "CHANNEL", nil, id)
+    else
+        JoinChannelByName("World")
+        print("|cffFFD700[Dark Centuries]|r Joining World chat — try again in a second.")
+    end
+end
+
 -- ── Slash commands ────────────────────────────────────────────
 SLASH_DARKCENTURIES1 = "/dc"
 SlashCmdList["DARKCENTURIES"] = function(msg)

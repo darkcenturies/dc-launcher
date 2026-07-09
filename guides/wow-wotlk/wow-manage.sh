@@ -2225,6 +2225,16 @@ Environment=OLLAMA_KEEP_ALIVE=-1
     if [ -f "$dist" ]; then
         sed -e "s|^OllamaChat.Url = .*|OllamaChat.Url = http://host.docker.internal:11434/api/generate|"             -e "s|^OllamaChat.Model = .*|OllamaChat.Model = $model|"             -e "s|^OllamaChat.EnableWhisperReplies = 0|OllamaChat.EnableWhisperReplies = 1|"             -e "s|^OllamaChat.EnableRPPersonalities = 0|OllamaChat.EnableRPPersonalities = 1|"             -e "s|^OllamaChat.EnableSentimentTracking = 0|OllamaChat.EnableSentimentTracking = 1|"             -e "s|^OllamaChat.MaxConcurrentQueries = .*|OllamaChat.MaxConcurrentQueries = 4|"             -e "s|^OllamaChat.EnableTypingSimulation = 0|OllamaChat.EnableTypingSimulation = 1|"             -e "s|^OllamaChat.TypingSimulationDelayPerChar = .*|OllamaChat.TypingSimulationDelayPerChar = 30|"             -e "s|^OllamaChat.TypingSimulationBaseDelay = .*|OllamaChat.TypingSimulationBaseDelay = 500|"             "$dist" > "$conf_dir/mod_ollama_chat.conf"
         print_success "Wrote $conf_dir/mod_ollama_chat.conf"
+        # War knowledge for bot conversations (RAG): bots can explain the
+        # Dark Centuries war accurately when players ask about it
+        mkdir -p "$SERVER_DIR/modules/mod-ollama-chat/data/rag"
+        if curl -fsSL "https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/guides/wow-wotlk/ollama-chat/rag/dc_war.json?cb=$(date +%s)"             -o "$SERVER_DIR/modules/mod-ollama-chat/data/rag/dc_war.json" 2>/dev/null; then
+            sed -i 's|^OllamaChat.EnableRAG = 0|OllamaChat.EnableRAG = 1|' "$conf_dir/mod_ollama_chat.conf"
+            print_success "Installed war knowledge base (RAG enabled)"
+        else
+            print_warning "Could not fetch the war knowledge base — skipping RAG."
+        fi
+
         # DC prompt preset: bots talk like real players (see the preset
         # file for the full design). Appended after the base conf — the
         # last occurrence of a key wins.
