@@ -171,34 +171,26 @@ local function RefreshOverlays()
                     local tX = texX * width
                     local tY = texY * height
                     if tX > 0 and tY > 0 then
-                        -- Blizzard uses backslash paths for these MPQ files
+                        -- Our own alpha-masked copy of the zone highlight
+                        -- shape (shipped in shapes/, converted from the
+                        -- client blps). Normal blending, so the faction
+                        -- color renders solid and saturated.
                         local sep = string.char(92)
-                        local path = "Interface" .. sep .. "WorldMap" .. sep
-                            .. fileName .. sep .. fileName .. "Highlight"
+                        local path = "Interface" .. sep .. "AddOns" .. sep
+                            .. "DarkCenturies" .. sep .. "shapes" .. sep .. fileName
                         local okTex = o.tex:SetTexture(path)
-                        -- A missing texture renders as a solid black box —
-                        -- only accept the shaped overlay if the file loaded
                         if okTex and o.tex:GetTexture() then
-                            -- Highlight blps are black with the zone shape in
-                            -- bright pixels; Blizzard renders them additively
-                            -- (alphaMode="ADD" in WorldMapFrame.xml). Without
-                            -- ADD they draw as black boxes.
-                            local sx, sy = scrollX * width, -scrollY * height
-                            for _, t in ipairs({ o.tex, o.tex2 }) do
-                                if t ~= o.tex then t:SetTexture(path) end
-                                t:SetBlendMode("ADD")
-                                -- The highlight art is sepia-toned; desaturate
-                                -- to grayscale so the faction tint colors it
-                                -- instead of multiplying against gold pixels
-                                t:SetDesaturated(1)
-                                t:SetTexCoord(0, texPctX, 0, texPctY)
-                                t:SetVertexColor(col.r, col.g, col.b, 0.9)
-                                t:ClearAllPoints()
-                                t:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT", sx, sy)
-                                t:SetWidth(tX)
-                                t:SetHeight(tY)
-                                t:Show()
-                            end
+                            o.tex2:Hide()
+                            o.tex:SetBlendMode("BLEND")
+                            o.tex:SetDesaturated(nil)
+                            o.tex:SetTexCoord(0, texPctX, 0, texPctY)
+                            o.tex:SetVertexColor(col.r, col.g, col.b, 0.55)
+                            o.tex:ClearAllPoints()
+                            o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
+                                scrollX * width, -scrollY * height)
+                            o.tex:SetWidth(tX)
+                            o.tex:SetHeight(tY)
+                            o.tex:Show()
                             shaped = true
                         end
                     end
