@@ -167,16 +167,24 @@ local function RefreshOverlays()
                     local tX = texX * width
                     local tY = texY * height
                     if tX > 0 and tY > 0 then
-                        o.tex:SetTexture("Interface/WorldMap/" .. fileName .. "/" .. fileName .. "Highlight")
-                        o.tex:SetTexCoord(0, texPctX, 0, texPctY)
-                        o.tex:SetVertexColor(col.r, col.g, col.b, DC.ALPHA + 0.18)
-                        o.tex:ClearAllPoints()
-                        o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
-                            scrollX * width, -scrollY * height)
-                        o.tex:SetWidth(tX)
-                        o.tex:SetHeight(tY)
-                        o.tex:Show()
-                        shaped = true
+                        -- Blizzard uses backslash paths for these MPQ files
+                        local sep = string.char(92)
+                        local path = "Interface" .. sep .. "WorldMap" .. sep
+                            .. fileName .. sep .. fileName .. "Highlight"
+                        local okTex = o.tex:SetTexture(path)
+                        -- A missing texture renders as a solid black box —
+                        -- only accept the shaped overlay if the file loaded
+                        if okTex and o.tex:GetTexture() then
+                            o.tex:SetTexCoord(0, texPctX, 0, texPctY)
+                            o.tex:SetVertexColor(col.r, col.g, col.b, DC.ALPHA + 0.18)
+                            o.tex:ClearAllPoints()
+                            o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
+                                scrollX * width, -scrollY * height)
+                            o.tex:SetWidth(tX)
+                            o.tex:SetHeight(tY)
+                            o.tex:Show()
+                            shaped = true
+                        end
                     end
                     break
                 end
