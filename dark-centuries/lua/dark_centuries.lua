@@ -164,6 +164,27 @@ local function SendFullState(player)
     end
 end
 
+-- ── Territory buff ───────────────────────────────────────────
+-- No chat spam: control is shown as a visible aura on the player.
+-- 57940 = Essence of Wintergrasp (exists in the 3.3.5a client,
+-- "your faction controls this territory" marker; the +25% XP is
+-- applied by OnGiveXP whenever this condition holds).
+DC.BUFF_SPELL = 57940
+
+local function UpdateZoneBuff(player)
+    local zoneId = player:GetZoneId()
+    local zone = DC.ZONES[zoneId]
+    if zone and ZoneFaction(zoneId) == PlayerFaction(player) then
+        if not player:HasAura(DC.BUFF_SPELL) then
+            player:AddAura(DC.BUFF_SPELL, player)
+        end
+    else
+        if player:HasAura(DC.BUFF_SPELL) then
+            player:RemoveAura(DC.BUFF_SPELL)
+        end
+    end
+end
+
 -- ── Zone flip ────────────────────────────────────────────────
 local function OnZoneFlip(zoneId, newFaction, oldFaction)
     local s     = DC.state[zoneId]
@@ -177,6 +198,13 @@ local function OnZoneFlip(zoneId, newFaction, oldFaction)
 
     SaveZone(zoneId)
     BroadcastZoneState(zoneId)
+
+    -- Grant/strip the territory buff for everyone in the zone
+    for _, p in ipairs(GetPlayersInWorld()) do
+        if p:GetZoneId() == zoneId then
+            UpdateZoneBuff(p)
+        end
+    end
 end
 
 -- ── PvP kill capture ─────────────────────────────────────────
@@ -236,40 +264,15 @@ end
 
 -- ── Zone change / login ──────────────────────────────────────
 local function OnUpdateZone(event, player, newZone, newArea)
-    local zone = DC.ZONES[newZone]
-    if not zone then return end
-    NotifyPlayer(player, newZone)
-
-    local f  = ZoneFaction(newZone)
-    local pf = PlayerFaction(player)
-
-    if zone.locked then
-        if f == pf then
-            player:SendBroadcastMessage(string.format(
-                "|cffFFD700[Dark Centuries]|r %s is your faction's home territory. |cff00FF00+%d%% XP bonus active.|r",
-                zone.name, DC.XP_BONUS_PCT * 100))
-        else
-            player:SendBroadcastMessage(string.format(
-                "|cffFFD700[Dark Centuries]|r You have entered enemy home territory: %s. |cffFF4444Watch your back.|r",
-                zone.name))
-        end
-    elseif f == DC.N then
-        player:SendBroadcastMessage(string.format(
-            "|cffFFD700[Dark Centuries]|r %s is |cffFFCC00contested|r. Fight to claim it for your faction.",
-            zone.name))
-    elseif f == pf then
-        player:SendBroadcastMessage(string.format(
-            "|cffFFD700[Dark Centuries]|r Your faction controls %s. |cff00FF00+%d%% XP bonus active.|r",
-            zone.name, DC.XP_BONUS_PCT * 100))
-    else
-        player:SendBroadcastMessage(string.format(
-            "|cffFFD700[Dark Centuries]|r %s is held by the enemy. Reclaim it for your faction.",
-            zone.name))
+    if DC.ZONES[newZone] then
+        NotifyPlayer(player, newZone)
     end
+    UpdateZoneBuff(player)
 end
 
 local function OnLogin(event, player)
     SendFullState(player)
+    UpdateZoneBuff(player)
 end
 
 -- ── Decay tick ───────────────────────────────────────────────
