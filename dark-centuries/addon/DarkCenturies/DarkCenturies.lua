@@ -110,6 +110,10 @@ local function GetOverlay(zoneId, layer)
     -- sublayer by draw order so big zones sit under small ones
     o.tex = overlayParent:CreateTexture(nil, "ARTWORK", nil, layer or 0)
     o.tex:Hide()
+    -- Second copy stacked on top: additive passes accumulate, making the
+    -- faction color saturate instead of washing into the map's own tones
+    o.tex2 = overlayParent:CreateTexture(nil, "ARTWORK", nil, layer or 0)
+    o.tex2:Hide()
     o.pct = overlayParent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     o.pct:Hide()
     DC.overlays[zoneId] = o
@@ -118,7 +122,7 @@ end
 
 local function HideAllOverlays()
     for _, o in pairs(DC.overlays) do
-        o.tex:Hide(); o.pct:Hide()
+        o.tex:Hide(); o.tex2:Hide(); o.pct:Hide()
     end
 end
 
@@ -179,15 +183,18 @@ local function RefreshOverlays()
                             -- bright pixels; Blizzard renders them additively
                             -- (alphaMode="ADD" in WorldMapFrame.xml). Without
                             -- ADD they draw as black boxes.
-                            o.tex:SetBlendMode("ADD")
-                            o.tex:SetTexCoord(0, texPctX, 0, texPctY)
-                            o.tex:SetVertexColor(col.r, col.g, col.b, 0.85)
-                            o.tex:ClearAllPoints()
-                            o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
-                                scrollX * width, -scrollY * height)
-                            o.tex:SetWidth(tX)
-                            o.tex:SetHeight(tY)
-                            o.tex:Show()
+                            local sx, sy = scrollX * width, -scrollY * height
+                            for _, t in ipairs({ o.tex, o.tex2 }) do
+                                if t ~= o.tex then t:SetTexture(path) end
+                                t:SetBlendMode("ADD")
+                                t:SetTexCoord(0, texPctX, 0, texPctY)
+                                t:SetVertexColor(col.r, col.g, col.b, 0.9)
+                                t:ClearAllPoints()
+                                t:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT", sx, sy)
+                                t:SetWidth(tX)
+                                t:SetHeight(tY)
+                                t:Show()
+                            end
                             shaped = true
                         end
                     end
@@ -197,6 +204,7 @@ local function RefreshOverlays()
 
             if not shaped then
                 -- Exact-rect turf block from WorldMapArea.dbc
+                o.tex2:Hide()
                 o.tex:SetBlendMode("BLEND")
                 o.tex:SetTexture("Interface/Buttons/WHITE8X8")
                 o.tex:SetTexCoord(0, 1, 0, 1)
