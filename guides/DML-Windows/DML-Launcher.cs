@@ -147,8 +147,19 @@ class TrayApp : ApplicationContext
 
     void MaybeReReleaseWsl()
     {
-        if (ServersIntentionallyStopped() && IsDistroRunning())
-            TriggerReleaseWsl(0);
+        if (!ServersIntentionallyStopped() || !IsDistroRunning()) return;
+        // The stopped marker can be stale: servers may have been started
+        // outside the tray (wow-manage.sh, a terminal, a script). Never
+        // shut down a WSL that is actually running game servers — check
+        // reality first, and if servers are up, clear the marker instead.
+        int running = 0;
+        try { running = CountRunning(WslRun("dml status")); } catch { }
+        if (running > 0)
+        {
+            try { System.IO.File.Delete(StoppedMarkerPath); } catch { }
+            return;
+        }
+        TriggerReleaseWsl(0);
     }
 
     // True only when dml-arch is Running — wsl -l -v does NOT boot the distro.
