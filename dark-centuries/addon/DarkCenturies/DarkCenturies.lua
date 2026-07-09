@@ -140,6 +140,7 @@ local RECT_PROBES = {
 -- ── The core: tint each zone with its faction color ──────────
 local function RefreshOverlays()
     HideAllOverlays()
+    DC.lastShaped, DC.lastRect = 0, 0
 
     -- Only draw on the two Azeroth continent maps, zoomed out
     local cont = GetCurrentMapContinent()
@@ -184,7 +185,7 @@ local function RefreshOverlays()
                             o.tex:SetBlendMode("BLEND")
                             o.tex:SetDesaturated(nil)
                             o.tex:SetTexCoord(0, texPctX, 0, texPctY)
-                            o.tex:SetVertexColor(col.r, col.g, col.b, 0.55)
+                            o.tex:SetVertexColor(col.r, col.g, col.b, 0.75)
                             o.tex:ClearAllPoints()
                             o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
                                 scrollX * width, -scrollY * height)
@@ -192,6 +193,7 @@ local function RefreshOverlays()
                             o.tex:SetHeight(tY)
                             o.tex:Show()
                             shaped = true
+                            DC.lastShaped = DC.lastShaped + 1
                         end
                     end
                     break
@@ -211,6 +213,7 @@ local function RefreshOverlays()
                 o.tex:SetWidth(m.w * width)
                 o.tex:SetHeight(m.h * height)
                 o.tex:Show()
+                DC.lastRect = DC.lastRect + 1
             end
 
             -- Contested zones show the current balance
@@ -305,10 +308,27 @@ SlashCmdList["DARKCENTURIES"] = function(msg)
         print(string.format("  Totals: |cff4477FFAlliance %d|r  |cffFF4444Horde %d|r  |cffFFCC00Contested %d|r", a, h, n))
     elseif msg == "map" then
         ToggleWorldMap()
+    elseif msg == "debug" then
+        local n = 0
+        for _ in pairs(DC.zoneState) do n = n + 1 end
+        print("|cffFFD700[DC debug]|r zones cached from server: " .. n)
+        print("  continent=" .. tostring(GetCurrentMapContinent())
+            .. " zone=" .. tostring(GetCurrentMapZone())
+            .. " mapShown=" .. tostring(WorldMapFrame:IsShown()))
+        print("  last draw: shaped=" .. tostring(DC.lastShaped or "?")
+            .. " rect=" .. tostring(DC.lastRect or "?"))
+        local sep = string.char(92)
+        local test = overlayParent:CreateTexture(nil, "ARTWORK")
+        local ok = test:SetTexture("Interface" .. sep .. "AddOns" .. sep
+            .. "DarkCenturies" .. sep .. "shapes" .. sep .. "Elwynn")
+        print("  shape file test (Elwynn): SetTexture=" .. tostring(ok)
+            .. " GetTexture=" .. tostring(test:GetTexture()))
+        test:Hide()
     else
         print("|cffFFD700[Dark Centuries]|r commands:")
         print("  /dc status — faction totals + contested zone breakdown")
         print("  /dc map — open the territory map")
+        print("  /dc debug — diagnostic info")
     end
 end
 
