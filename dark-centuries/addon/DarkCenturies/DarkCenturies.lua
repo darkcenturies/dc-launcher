@@ -181,20 +181,23 @@ local function RefreshOverlays()
                     local tX = texX * width
                     local tY = texY * height
                     if tX > 0 and tY > 0 then
-                        -- Blizzard's own highlight blp rendered additively
-                        -- (as WorldMapFrame.xml does), desaturated so the
-                        -- tint is pure, colored with a single-hue channel
+                        -- Alpha-masked zone shape shipped with the addon
+                        -- (shapes/*.tga, white with normalized alpha).
+                        -- Normal blending + vertex color = solid faction
+                        -- color in the exact zone outline. The client's own
+                        -- highlight blps can't do this: their art peaks at
+                        -- ~16% brightness, so additive tinting is invisible
+                        -- and desaturation breaks tinting on this client.
                         local sep = string.char(92)
-                        local path = "Interface" .. sep .. "WorldMap" .. sep
-                            .. fileName .. sep .. fileName .. "Highlight"
-                        local addCol = DC.ADD_COLOR[s.faction] or DC.ADD_COLOR[DC.N]
+                        local path = "Interface" .. sep .. "AddOns" .. sep
+                            .. "DarkCenturies" .. sep .. "shapes" .. sep .. fileName
                         local okTex = o.tex:SetTexture(path)
                         if okTex and o.tex:GetTexture() then
                             o.tex2:Hide()
-                            o.tex:SetBlendMode("ADD")
-                            o.tex:SetDesaturated(1)
+                            o.tex:SetBlendMode("BLEND")
+                            o.tex:SetDesaturated(nil)
                             o.tex:SetTexCoord(0, texPctX, 0, texPctY)
-                            o.tex:SetVertexColor(addCol.r, addCol.g, addCol.b, 0.8)
+                            o.tex:SetVertexColor(col.r, col.g, col.b, 0.8)
                             o.tex:ClearAllPoints()
                             o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
                                 scrollX * width, -scrollY * height)
