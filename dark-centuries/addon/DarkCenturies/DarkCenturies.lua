@@ -175,6 +175,12 @@ local function RefreshOverlays()
             local o = GetOverlay(zoneId, math.min(7, math.floor(order / 8)))
             local wantKey = NameKey(m.name)
             local shaped = false
+            -- label anchor: dbc rect center by default; replaced by the
+            -- drawn shape's center when the highlight art resolves (its
+            -- bounding box tracks the visible landmass far better for
+            -- irregular zones like Felwood or Feralas)
+            local labelX = (m.l + m.w / 2) * width
+            local labelY = -(m.t + m.h / 2) * height
 
             -- Try the engine's zone-shaped highlight art. 3.3.5 returns
             -- EIGHT values; the first is the localized zone NAME — we use
@@ -211,6 +217,8 @@ local function RefreshOverlays()
                             o.tex:SetWidth(tX)
                             o.tex:SetHeight(tY)
                             o.tex:Show()
+                            labelX = scrollX * width + tX / 2
+                            labelY = -scrollY * height - tY / 2
                             shaped = true
                             DC.lastShaped = DC.lastShaped + 1
                         end
@@ -239,7 +247,7 @@ local function RefreshOverlays()
             if s.faction == DC.N and s.progress ~= 50 then
                 o.pct:ClearAllPoints()
                 o.pct:SetPoint("CENTER", WorldMapDetailFrame, "TOPLEFT",
-                    (m.l + m.w / 2) * width, -(m.t + m.h / 2) * height)
+                    labelX, labelY)
                 if s.progress > 50 then
                     o.pct:SetText("|cffFF4444" .. s.progress .. "%|r")
                 else
