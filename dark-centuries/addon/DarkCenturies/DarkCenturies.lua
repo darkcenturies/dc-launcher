@@ -112,6 +112,26 @@ local overlayParent = CreateFrame("Frame", "DarkCenturiesOverlayFrame", WorldMap
 overlayParent:SetAllPoints(WorldMapDetailFrame)
 overlayParent:SetFrameLevel(WorldMapDetailFrame:GetFrameLevel() + 1)
 
+-- Leaning contested zones breathe between purple and the leading
+-- faction's color. Pulse depth scales with how hard the lean is:
+-- 51% barely shimmers, 69% swings almost fully red/blue.
+DC.pulse = {}
+overlayParent:SetScript("OnUpdate", function()
+    local n = #DC.pulse
+    if n == 0 then return end
+    local base = DC.COLOR[DC.N]
+    local t = (math.sin(GetTime() * 2.2) + 1) * 0.5
+    for i = 1, n do
+        local e = DC.pulse[i]
+        local m = t * e.amount
+        e.tex:SetVertexColor(
+            base.r + (e.lean.r - base.r) * m,
+            base.g + (e.lean.g - base.g) * m,
+            base.b + (e.lean.b - base.b) * m,
+            e.alpha)
+    end
+end)
+
 local function GetOverlay(zoneId, layer)
     local o = DC.overlays[zoneId]
     if o then return o end
@@ -156,6 +176,7 @@ local RECT_PROBES = {
 -- ── The core: tint each zone with its faction color ──────────
 local function RefreshOverlays()
     HideAllOverlays()
+    DC.pulse = {}
     DC.lastShaped, DC.lastRect = 0, 0
 
     -- Only draw on the two Azeroth continent maps, zoomed out
@@ -175,12 +196,6 @@ local function RefreshOverlays()
             local o = GetOverlay(zoneId, math.min(7, math.floor(order / 8)))
             local wantKey = NameKey(m.name)
             local shaped = false
-            -- label anchor: dbc rect center by default; replaced by the
-            -- drawn shape's center when the highlight art resolves (its
-            -- bounding box tracks the visible landmass far better for
-            -- irregular zones like Felwood or Feralas)
-            local labelX = (m.l + m.w / 2) * width
-            local labelY = -(m.t + m.h / 2) * height
 
             -- Try the engine's zone-shaped highlight art. 3.3.5 returns
             -- EIGHT values; the first is the localized zone NAME — we use
@@ -217,8 +232,6 @@ local function RefreshOverlays()
                             o.tex:SetWidth(tX)
                             o.tex:SetHeight(tY)
                             o.tex:Show()
-                            labelX = scrollX * width + tX / 2
-                            labelY = -scrollY * height - tY / 2
                             shaped = true
                             DC.lastShaped = DC.lastShaped + 1
                         end
@@ -243,17 +256,15 @@ local function RefreshOverlays()
                 DC.lastRect = DC.lastRect + 1
             end
 
-            -- Contested zones show the current balance
+            -- Leaning contested zones pulse toward the leading
+            -- faction's color (exact % still shows on hover)
             if s.faction == DC.N and s.progress ~= 50 then
-                o.pct:ClearAllPoints()
-                o.pct:SetPoint("CENTER", WorldMapDetailFrame, "TOPLEFT",
-                    labelX, labelY)
-                if s.progress > 50 then
-                    o.pct:SetText("|cffFF4444" .. s.progress .. "%|r")
-                else
-                    o.pct:SetText("|cff4477FF" .. (100 - s.progress) .. "%|r")
-                end
-                o.pct:Show()
+                table.insert(DC.pulse, {
+                    tex    = o.tex,
+                    lean   = (s.progress > 50) and DC.COLOR[DC.H] or DC.COLOR[DC.A],
+                    amount = math.min(1, math.abs(s.progress - 50) / 20),
+                    alpha  = shaped and 0.6 or DC.ALPHA,
+                })
             end
         end
     end
