@@ -109,7 +109,6 @@ local function GetOverlay(zoneId, layer)
     o = {}
     -- sublayer by draw order so big zones sit under small ones
     o.tex = overlayParent:CreateTexture(nil, "ARTWORK", nil, layer or 0)
-    o.tex:SetTexture("Interface/Buttons/WHITE8X8")
     o.tex:Hide()
     o.pct = overlayParent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     o.pct:Hide()
@@ -122,6 +121,17 @@ local function HideAllOverlays()
         o.tex:Hide(); o.pct:Hide()
     end
 end
+
+-- Loose name match: "Un'Goro Crater" == "UnGoro Crater" etc.
+local function NameKey(n)
+    return string.lower(string.gsub(n or "", "[^%a]", ""))
+end
+
+-- Probe points inside a zone's rect (fractions of the rect)
+local RECT_PROBES = {
+    { 0.5, 0.5 }, { 0.35, 0.5 }, { 0.65, 0.5 }, { 0.5, 0.35 }, { 0.5, 0.65 },
+    { 0.3, 0.3 }, { 0.7, 0.7 }, { 0.3, 0.7 }, { 0.7, 0.3 }, { 0.5, 0.25 },
+}
 
 -- ── The core: tint each zone with its faction color ──────────
 local function RefreshOverlays()
@@ -138,13 +148,44 @@ local function RefreshOverlays()
     for order = 1, #DC.DRAW_ORDER do
         local zoneId = DC.DRAW_ORDER[order]
         local m = DC.MAP[zoneId]
-        if m.c == cont then
+        if m.c == cont and DC.zoneState[zoneId] then
             local s = DC.zoneState[zoneId]
-            if s then
-                local col = DC.COLOR[s.faction] or DC.COLOR[DC.N]
-                -- sublayer 0-7 max; spread draw order across it
-                local o = GetOverlay(zoneId, math.min(7, math.floor(order / 8)))
+            local col = DC.COLOR[s.faction] or DC.COLOR[DC.N]
+            local o = GetOverlay(zoneId, math.min(7, math.floor(order / 8)))
+            local wantKey = NameKey(m.name)
+            local shaped = false
 
+            -- Try the engine's zone-shaped highlight art. 3.3.5 returns
+            -- EIGHT values; the first is the localized zone NAME — we use
+            -- it to verify the probe actually hit this zone.
+            for i = 1, #RECT_PROBES do
+                local px = m.l + m.w * RECT_PROBES[i][1]
+                local py = m.t + m.h * RECT_PROBES[i][2]
+                local name, fileName, texPctX, texPctY, texX, texY, scrollX, scrollY =
+                    UpdateMapHighlight(px, py)
+                if name and fileName and NameKey(name) == wantKey then
+                    local tX = texX * width
+                    local tY = texY * height
+                    if tX > 0 and tY > 0 then
+                        o.tex:SetTexture("Interface/WorldMap/" .. fileName .. "/" .. fileName .. "Highlight")
+                        o.tex:SetTexCoord(0, texPctX, 0, texPctY)
+                        o.tex:SetVertexColor(col.r, col.g, col.b, DC.ALPHA + 0.18)
+                        o.tex:ClearAllPoints()
+                        o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
+                            scrollX * width, -scrollY * height)
+                        o.tex:SetWidth(tX)
+                        o.tex:SetHeight(tY)
+                        o.tex:Show()
+                        shaped = true
+                    end
+                    break
+                end
+            end
+
+            if not shaped then
+                -- Exact-rect turf block from WorldMapArea.dbc
+                o.tex:SetTexture("Interface/Buttons/WHITE8X8")
+                o.tex:SetTexCoord(0, 1, 0, 1)
                 o.tex:SetVertexColor(col.r, col.g, col.b, DC.ALPHA)
                 o.tex:ClearAllPoints()
                 o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
@@ -152,19 +193,19 @@ local function RefreshOverlays()
                 o.tex:SetWidth(m.w * width)
                 o.tex:SetHeight(m.h * height)
                 o.tex:Show()
+            end
 
-                -- Contested zones show the current balance
-                if s.faction == DC.N and s.progress ~= 50 then
-                    o.pct:ClearAllPoints()
-                    o.pct:SetPoint("CENTER", WorldMapDetailFrame, "TOPLEFT",
-                        (m.l + m.w / 2) * width, -(m.t + m.h / 2) * height)
-                    if s.progress > 50 then
-                        o.pct:SetText("|cffFF4444" .. s.progress .. "%|r")
-                    else
-                        o.pct:SetText("|cff4477FF" .. (100 - s.progress) .. "%|r")
-                    end
-                    o.pct:Show()
+            -- Contested zones show the current balance
+            if s.faction == DC.N and s.progress ~= 50 then
+                o.pct:ClearAllPoints()
+                o.pct:SetPoint("CENTER", WorldMapDetailFrame, "TOPLEFT",
+                    (m.l + m.w / 2) * width, -(m.t + m.h / 2) * height)
+                if s.progress > 50 then
+                    o.pct:SetText("|cffFF4444" .. s.progress .. "%|r")
+                else
+                    o.pct:SetText("|cff4477FF" .. (100 - s.progress) .. "%|r")
                 end
+                o.pct:Show()
             end
         end
     end

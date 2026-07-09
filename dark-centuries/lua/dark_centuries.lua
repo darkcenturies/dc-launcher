@@ -310,6 +310,15 @@ RegisterPlayerEvent(3,  OnLogin)
 
 CreateLuaEvent(DecayTick, DC.DECAY_TICK_MS, 0)
 
+-- Full-state rebroadcast so clients that /reload (clearing their addon
+-- cache mid-session) resync within a minute without relogging
+local function ResyncTick()
+    for _, p in ipairs(GetPlayersInWorld()) do
+        SendFullState(p)
+    end
+end
+CreateLuaEvent(ResyncTick, 60000, 0)
+
 -- Sync everyone already online (script reload / server restart)
 for _, p in ipairs(GetPlayersInWorld()) do
     SendFullState(p)
