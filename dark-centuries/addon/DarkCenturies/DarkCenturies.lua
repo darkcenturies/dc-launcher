@@ -187,6 +187,10 @@ local function RefreshOverlays()
                             for _, t in ipairs({ o.tex, o.tex2 }) do
                                 if t ~= o.tex then t:SetTexture(path) end
                                 t:SetBlendMode("ADD")
+                                -- The highlight art is sepia-toned; desaturate
+                                -- to grayscale so the faction tint colors it
+                                -- instead of multiplying against gold pixels
+                                t:SetDesaturated(1)
                                 t:SetTexCoord(0, texPctX, 0, texPctY)
                                 t:SetVertexColor(col.r, col.g, col.b, 0.9)
                                 t:ClearAllPoints()
