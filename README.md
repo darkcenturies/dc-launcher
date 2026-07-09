@@ -30,7 +30,7 @@ The original DML approach compiled `DML-Launcher.cs` from source at install time
 | Install detection | One hardcoded path | Checks Program Files, AppData, `C:\DCL`, `C:\DML` |
 | CI/CD | None | GitHub Actions builds and publishes exe on every version tag |
 | Manage/Backup when server off | Always enabled (misleading) | Grayed out when server is not running |
-| Scope | Multi-game | WotLK 3.3.5a + optional Unbound Wrath only |
+| Scope | Multi-game | WotLK 3.3.5a + Dark Centuries territory war |
 
 ### Installer fixes
 
@@ -218,7 +218,7 @@ DC Launcher (Windows tray app)
 | `guides/wow-wotlk/Install-WoW-WotLK.ps1` | WotLK server installer |
 | `guides/wow-wotlk/dml-start.sh` | Server start script (staged, waits for DB) |
 | `guides/wow-wotlk/wow-manage.sh` | Interactive server manager |
-| `guides/unbound-wrath/` | Unbound Wrath addon installer |
+| `dark-centuries/` | Dark Centuries territory war (server Lua + client addon + SQL) |
 | `.github/workflows/release.yml` | CI: builds and releases exe on version tag |
 
 ---
