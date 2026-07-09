@@ -2234,6 +2234,18 @@ DC_TPL
         print_warning "conf.dist not found — install the module first."
     fi
 
+    # Realistic player personalities: the stock set makes bots talk like
+    # stage actors ("speak like a drunk dwarf"); this swaps the random pool
+    # for player-behind-the-keyboard archetypes. Theatrical ones remain
+    # available for manual assignment.
+    if ensure_db_running 2>/dev/null; then
+        if curl -fsSL "https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/guides/wow-wotlk/ollama-chat/realistic_personalities.sql" |             docker exec -i "$DB_CONTAINER" mysql -uroot -p"$DB_ROOT_PASSWORD" acore_characters 2>/dev/null; then
+            print_success "Installed realistic player personalities"
+        else
+            print_warning "Personality SQL failed — bots will use stock personas."
+        fi
+    fi
+
     echo ""
     print_info "After the worldserver rebuild: whisper any bot to chat."
     print_info "Friend one (/friend <botname>) and chat regularly — sentiment"
