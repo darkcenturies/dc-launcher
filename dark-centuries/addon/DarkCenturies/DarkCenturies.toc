@@ -3,5 +3,6 @@
 ## Notes: Territory war — every zone of Azeroth belongs to a faction. Open the map to see the front lines.
 ## Author: darkcenturies
 ## Version: 0.1b
+## SavedVariables: DarkCenturiesDB
 
 DarkCenturies.lua

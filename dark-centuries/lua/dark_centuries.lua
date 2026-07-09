@@ -317,7 +317,7 @@ local function ResyncTick()
         SendFullState(p)
     end
 end
-CreateLuaEvent(ResyncTick, 60000, 0)
+CreateLuaEvent(ResyncTick, 20000, 0)
 
 -- Sync everyone already online (script reload / server restart)
 for _, p in ipairs(GetPlayersInWorld()) do

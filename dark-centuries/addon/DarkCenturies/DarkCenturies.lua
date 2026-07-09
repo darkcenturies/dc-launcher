@@ -322,12 +322,26 @@ end
 
 -- ── Events ───────────────────────────────────────────────────
 local frame = CreateFrame("Frame", "DarkCenturiesFrame")
+frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("CHAT_MSG_ADDON")
 frame:RegisterEvent("WORLD_MAP_UPDATE")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 frame:SetScript("OnEvent", function(self, event, ...)
-    if event == "CHAT_MSG_ADDON" then
+    if event == "ADDON_LOADED" then
+        local addonName = ...
+        if addonName == "DarkCenturies" then
+            -- Survive /reload: restore the last known world state and
+            -- keep writing into the saved table (server refreshes it
+            -- on login and every resync tick anyway)
+            DarkCenturiesDB = DarkCenturiesDB or {}
+            DarkCenturiesDB.zoneState = DarkCenturiesDB.zoneState or {}
+            for zoneId, st in pairs(DarkCenturiesDB.zoneState) do
+                DC.zoneState[zoneId] = st
+            end
+            DarkCenturiesDB.zoneState = DC.zoneState
+        end
+    elseif event == "CHAT_MSG_ADDON" then
         OnAddonMessage(...)
     else
         if WorldMapFrame:IsShown() then
