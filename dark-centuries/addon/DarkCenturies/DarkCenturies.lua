@@ -18,9 +18,9 @@ DC.H = 2  -- Horde
 DC.zoneState = {}
 
 DC.COLOR = {
-    [DC.N] = { r = 1.00, g = 0.80, b = 0.10 },  -- yellow  contested
-    [DC.A] = { r = 0.15, g = 0.40, b = 1.00 },  -- blue    Alliance
-    [DC.H] = { r = 1.00, g = 0.15, b = 0.15 },  -- red     Horde
+    [DC.N] = { r = 0.95, g = 0.72, b = 0.10 },  -- amber   contested
+    [DC.A] = { r = 0.20, g = 0.45, b = 0.95 },  -- blue    Alliance
+    [DC.H] = { r = 0.90, g = 0.15, b = 0.10 },  -- red     Horde
 }
 DC.ALPHA = 0.32
 
@@ -197,7 +197,7 @@ local function RefreshOverlays()
                             o.tex:SetBlendMode("BLEND")
                             o.tex:SetDesaturated(nil)
                             o.tex:SetTexCoord(0, texPctX, 0, texPctY)
-                            o.tex:SetVertexColor(col.r, col.g, col.b, 0.8)
+                            o.tex:SetVertexColor(col.r, col.g, col.b, 0.6)
                             o.tex:ClearAllPoints()
                             o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
                                 scrollX * width, -scrollY * height)
