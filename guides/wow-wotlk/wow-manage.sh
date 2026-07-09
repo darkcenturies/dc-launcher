@@ -1027,6 +1027,7 @@ declare -a MODULE_REGISTRY=(
     "mod-junk-to-gold|Junk to Gold (auto-sell gray items)|https://github.com/noisiver/mod-junk-to-gold.git|world"
     "mod-learn-spells|Learn Spells on Levelup|https://github.com/azerothcore/mod-learn-spells.git|world"
     "mod-npc-beastmaster|NPC Beastmaster (pets for all classes)|https://github.com/azerothcore/mod-npc-beastmaster.git|world,characters"
+    "mod-ollama-chat|Ollama Bot Chat (AI-chatting playerbots via local LLM)|https://github.com/DustinHendrickson/mod-ollama-chat.git|characters"
     "mod-quest-loot-party|Quest Loot Party (quest items drop for all eligible party members)|https://github.com/pangolp/mod-quest-loot-party.git|world"
     "mod-arac|All Races All Classes (ARAC — data mod: SQL + DBC + MPQ)|https://github.com/heyitsbench/mod-arac.git|world"
     "mod-dungeon-master|Dungeon Master (roguelike dungeon challenge system)|https://github.com/InstanceForge/mod-dungeon-master.git|world,characters"
@@ -2152,6 +2153,77 @@ list_characters() {
     docker exec "$DB_CONTAINER" mysql -uroot -p"$DB_ROOT_PASSWORD" \
         -e "SELECT guid, name, account FROM acore_characters.characters \
             ORDER BY guid;" 2>/dev/null | tail -n +2
+}
+
+# ── mod-ollama-chat: local LLM setup ─────────────────────────
+# Installs Ollama (native package manager first), starts it listening on
+# all interfaces so the worldserver container can reach it, pulls a small
+# model, wires host.docker.internal into the compose override, and writes
+# mod_ollama_chat.conf with whispers, RP personalities, and sentiment
+# tracking enabled.
+configure_ollama_chat() {
+    print_step "Configuring Ollama Bot Chat"
+
+    local model="llama3.2:3b"
+
+    # 1. Ollama installed?
+    if ! command -v ollama >/dev/null 2>&1; then
+        print_info "Installing Ollama..."
+        if command -v pacman >/dev/null 2>&1; then
+            sudo pacman -Sy --noconfirm ollama
+        elif command -v apt-get >/dev/null 2>&1; then
+            curl -fsSL https://ollama.com/install.sh | sh
+        else
+            print_error "No supported package manager — install Ollama manually: https://ollama.com"
+            return 1
+        fi
+    fi
+    print_success "Ollama: $(ollama --version 2>/dev/null | head -1)"
+
+    # 2. Service listening on all interfaces (container must reach it)
+    sudo mkdir -p /etc/systemd/system/ollama.service.d
+    printf '[Service]
+Environment=OLLAMA_HOST=0.0.0.0:11434
+' |         sudo tee /etc/systemd/system/ollama.service.d/override.conf >/dev/null
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now ollama
+    local i
+    for i in 1 2 3 4 5; do
+        curl -s http://localhost:11434/api/version >/dev/null 2>&1 && break
+        sleep 2
+    done
+    print_success "Ollama service running"
+
+    # 3. Model
+    if ! ollama list 2>/dev/null | grep -q "$model"; then
+        print_info "Pulling $model (~2 GB, one time)..."
+        ollama pull "$model" || { print_error "Model pull failed."; return 1; }
+    fi
+    print_success "Model ready: $model"
+
+    # 4. Container -> host route
+    local override="$SERVER_DIR/docker-compose.override.yml"
+    if [ -f "$override" ] && ! grep -q "host.docker.internal" "$override"; then
+        sed -i '/target: worldserver/a\    extra_hosts:
+      - "host.docker.internal:host-gateway"' "$override"
+        print_success "Added host.docker.internal route to compose override"
+    fi
+
+    # 5. Conf: whispers, personalities, sentiment on; our URL + model
+    local conf_dir="$SERVER_DIR/env/dist/etc/modules"
+    local dist="$SERVER_DIR/modules/mod-ollama-chat/conf/mod_ollama_chat.conf.dist"
+    mkdir -p "$conf_dir"
+    if [ -f "$dist" ]; then
+        sed -e "s|^OllamaChat.Url = .*|OllamaChat.Url = http://host.docker.internal:11434/api/generate|"             -e "s|^OllamaChat.Model = .*|OllamaChat.Model = $model|"             -e "s|^OllamaChat.EnableWhisperReplies = 0|OllamaChat.EnableWhisperReplies = 1|"             -e "s|^OllamaChat.EnableRPPersonalities = 0|OllamaChat.EnableRPPersonalities = 1|"             -e "s|^OllamaChat.EnableSentimentTracking = 0|OllamaChat.EnableSentimentTracking = 1|"             "$dist" > "$conf_dir/mod_ollama_chat.conf"
+        print_success "Wrote $conf_dir/mod_ollama_chat.conf"
+    else
+        print_warning "conf.dist not found — install the module first."
+    fi
+
+    echo ""
+    print_info "After the worldserver rebuild: whisper any bot to chat."
+    print_info "Friend one (/friend <botname>) and chat regularly — sentiment"
+    print_info "tracking means it remembers how it feels about you."
 }
 
 configure_ahbot() {
@@ -4958,6 +5030,10 @@ configure_sqlmod_xprates() {
 _get_about_text() {
     local key="$1"
     case "$key" in
+        mod-ollama-chat)
+            printf '%s
+'                 'Playerbots chat like real people through a locally hosted'                 'Ollama LLM: they answer whispers, say/yell, party and guild'                 'chat in character, with per-bot RP personalities, chat'                 'history, and sentiment tracking (bots remember how they'                 'feel about you). Friend a bot and build a relationship.'                 'Requires Ollama running locally -- Configure sets it up.'
+            ;;
         mod-ah-bot)
             printf '%s\n' \
                 'An Auction House bot that populates faction AH listings' \
@@ -5467,6 +5543,11 @@ _module_post_install_hook() {
             print_info "ALE requires post-install setup (lua_scripts dir + conf)."
             if ask_yes_no "Configure ALE now?"; then configure_ale; fi
             ;;
+        mod-ollama-chat)
+            echo ""
+            print_info "Ollama Bot Chat needs a local Ollama server + model."
+            if ask_yes_no "Set up Ollama now?"; then configure_ollama_chat; fi
+            ;;
         mod-challenge-modes)
             echo ""
             # Patch: newer AzerothCore changed the OnPlayerResurrect hook signature.
@@ -5772,6 +5853,7 @@ menu_modules() {
                 print_header
                 case "$key" in
                     mod-ah-bot)                  configure_ahbot ;;
+                    mod-ollama-chat)             configure_ollama_chat ;;
                     mod-ale)                     configure_ale ;;
                     mod-arac)                    configure_mod_arac ;;
                     mod-challenge-modes)         configure_module_challenge_modes ;;
@@ -5823,6 +5905,7 @@ _module_conf_name() {
         mod-junk-to-gold)               echo "" ;;
         mod-learn-spells)               echo "mod_learnspells.conf" ;;
         mod-npc-beastmaster)            echo "mod_npc_beastmaster.conf" ;;
+        mod-ollama-chat)                echo "mod_ollama_chat.conf" ;;
         mod-quest-loot-party)           echo "mod-quest-loot-party.conf" ;;
         mod-solocraft)                  echo "Solocraft.conf" ;;
         mod-transmog)                   echo "transmog.conf" ;;
