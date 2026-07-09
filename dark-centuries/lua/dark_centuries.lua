@@ -7,7 +7,7 @@
 local DC = {}
 
 -- ── Config ──────────────────────────────────────────────────
-DC.CAPTURE_PER_KILL  = 6      -- progress points per PvP kill
+DC.CAPTURE_PER_KILL  = 1      -- progress points per PvP kill (1 kill = 1%)
 DC.DECAY_PER_TICK    = 1      -- points back toward 50 per tick (when no fighting)
 DC.DECAY_TICK_MS     = 30000  -- 30 seconds
 DC.CONTROL_THRESHOLD = 30     -- <=30 = Alliance control, >=70 = Horde control
