@@ -175,8 +175,13 @@ local function RefreshOverlays()
                         -- A missing texture renders as a solid black box —
                         -- only accept the shaped overlay if the file loaded
                         if okTex and o.tex:GetTexture() then
+                            -- Highlight blps are black with the zone shape in
+                            -- bright pixels; Blizzard renders them additively
+                            -- (alphaMode="ADD" in WorldMapFrame.xml). Without
+                            -- ADD they draw as black boxes.
+                            o.tex:SetBlendMode("ADD")
                             o.tex:SetTexCoord(0, texPctX, 0, texPctY)
-                            o.tex:SetVertexColor(col.r, col.g, col.b, DC.ALPHA + 0.18)
+                            o.tex:SetVertexColor(col.r, col.g, col.b, 0.85)
                             o.tex:ClearAllPoints()
                             o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
                                 scrollX * width, -scrollY * height)
@@ -192,6 +197,7 @@ local function RefreshOverlays()
 
             if not shaped then
                 -- Exact-rect turf block from WorldMapArea.dbc
+                o.tex:SetBlendMode("BLEND")
                 o.tex:SetTexture("Interface/Buttons/WHITE8X8")
                 o.tex:SetTexCoord(0, 1, 0, 1)
                 o.tex:SetVertexColor(col.r, col.g, col.b, DC.ALPHA)
