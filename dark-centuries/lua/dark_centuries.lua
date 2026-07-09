@@ -305,6 +305,104 @@ local function DecayTick()
     end
 end
 
+local WarTick  -- forward declaration (defined below)
+
+-- ── Admin commands (.dc ...) ─────────────────────────────────
+-- .dc status            zone-by-zone control report
+-- .dc randomize         advance the war: some zones captured, others
+--                       contested at various states
+-- .dc reset             all contested zones back to 50 (even)
+-- .dc set <zone> <pct>  set a zone's progress (0=A .. 100=H)
+-- .dc war               run one war pulse immediately
+local function RefreshEveryone()
+    for _, p in ipairs(GetPlayersInWorld()) do
+        SendFullState(p)
+        UpdateZoneBuff(p)
+    end
+end
+
+local function ApplyProgress(zoneId, progress)
+    local zone = DC.ZONES[zoneId]
+    if not zone or zone.locked then return false end
+    local st = DC.state[zoneId]
+    local oldFac = ZoneFaction(zoneId)
+    st.progress = math.max(0, math.min(100, progress))
+    local newFac = ZoneFaction(zoneId)
+    if newFac ~= oldFac then
+        st.faction = newFac
+        st.flips = st.flips + 1
+    end
+    SaveZone(zoneId)
+    return true
+end
+
+local function OnCommand(event, player, command)
+    local cmd = command:lower()
+    if cmd ~= "dc" and cmd:sub(1, 3) ~= "dc " then return end
+
+    if player:GetGMRank() < 3 then
+        player:SendBroadcastMessage("|cffFFD700[Dark Centuries]|r You do not have permission for .dc commands.")
+        return false
+    end
+
+    local args = {}
+    for w in cmd:gmatch("%S+") do table.insert(args, w) end
+    local sub = args[2]
+
+    if sub == "status" then
+        player:SendBroadcastMessage("|cffFFD700[Dark Centuries]|r World control:")
+        for zoneId, zone in pairs(DC.ZONES) do
+            local st = DC.state[zoneId]
+            local f = ZoneFaction(zoneId)
+            local tag = zone.locked and " (home)" or ""
+            player:SendBroadcastMessage(string.format("  %d %s — %s A%d%%/H%d%%%s",
+                zoneId, zone.name, FactionName(f), 100 - st.progress, st.progress, tag))
+        end
+    elseif sub == "randomize" then
+        for zoneId, zone in pairs(DC.ZONES) do
+            if not zone.locked then
+                local roll = math.random()
+                local progress
+                if roll < 0.3 then progress = math.random(5, 30)       -- Alliance-held
+                elseif roll < 0.6 then progress = math.random(70, 95)  -- Horde-held
+                else progress = math.random(31, 69) end                -- contested
+                ApplyProgress(zoneId, progress)
+            end
+        end
+        RefreshEveryone()
+        SendWorldMessage("|cffFFD700[Dark Centuries]|r The tides of war have shifted dramatically across Azeroth!")
+        player:SendBroadcastMessage("|cffFFD700[Dark Centuries]|r World randomized.")
+    elseif sub == "reset" then
+        for zoneId, zone in pairs(DC.ZONES) do
+            if not zone.locked then
+                ApplyProgress(zoneId, 50)
+                DC.state[zoneId].faction = DC.N
+                SaveZone(zoneId)
+            end
+        end
+        RefreshEveryone()
+        player:SendBroadcastMessage("|cffFFD700[Dark Centuries]|r All contested zones reset to even.")
+    elseif sub == "set" and args[3] and args[4] then
+        local zoneId, pct = tonumber(args[3]), tonumber(args[4])
+        if zoneId and pct and ApplyProgress(zoneId, pct) then
+            RefreshEveryone()
+            player:SendBroadcastMessage(string.format(
+                "|cffFFD700[Dark Centuries]|r %s set to A%d%%/H%d%% (%s).",
+                DC.ZONES[zoneId].name, 100 - DC.state[zoneId].progress,
+                DC.state[zoneId].progress, FactionName(ZoneFaction(zoneId))))
+        else
+            player:SendBroadcastMessage("|cffFFD700[Dark Centuries]|r Usage: .dc set <zoneId> <0-100> (contested zones only).")
+        end
+    elseif sub == "war" then
+        WarTick()
+        RefreshEveryone()
+        player:SendBroadcastMessage("|cffFFD700[Dark Centuries]|r War pulse executed.")
+    else
+        player:SendBroadcastMessage("|cffFFD700[Dark Centuries]|r Commands: .dc status | randomize | reset | set <zone> <pct> | war")
+    end
+    return false
+end
+
 -- ── Bootstrap ────────────────────────────────────────────────
 LoadState()
 
@@ -314,12 +412,13 @@ RegisterPlayerEvent(6,  OnKillPlayer)
 RegisterPlayerEvent(12, OnGiveXP)
 RegisterPlayerEvent(27, OnUpdateZone)
 RegisterPlayerEvent(3,  OnLogin)
+RegisterPlayerEvent(42, OnCommand)  -- .dc admin commands
 
 CreateLuaEvent(DecayTick, DC.DECAY_TICK_MS, 0)
 
 -- The war rages even when nobody is watching: each pulse, some
 -- contested front lines move as off-screen battles are won and lost
-local function WarTick()
+WarTick = function()
     for zoneId, st in pairs(DC.state) do
         local zone = DC.ZONES[zoneId]
         if zone and not zone.locked and math.random() < DC.WAR_SHIFT_CHANCE then
