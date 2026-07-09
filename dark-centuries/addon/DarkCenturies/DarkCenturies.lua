@@ -3,11 +3,9 @@
 -- GTA:SA-style territory map: every zone of Azeroth is tinted
 -- by its controlling faction on the continent world maps.
 --
--- Zone shapes come from the game's own hover-highlight art via
--- UpdateMapHighlight(x, y). Each anchor point is probed (with
--- small offsets as backup) and the returned highlight texture is
--- tinted with the faction color. If no highlight can be resolved,
--- a small colored marker is drawn instead — never a black box.
+-- Zone rectangles are exact, extracted from the client's own
+-- WorldMapArea.dbc (including the map-530 transforms for the
+-- TBC zones), so every zone paints fully and in the right place.
 -- ============================================================
 
 local DC = {}
@@ -24,7 +22,7 @@ DC.COLOR = {
     [DC.A] = { r = 0.15, g = 0.40, b = 1.00 },  -- blue    Alliance
     [DC.H] = { r = 1.00, g = 0.15, b = 0.15 },  -- red     Horde
 }
-DC.ALPHA = 0.40
+DC.ALPHA = 0.32
 
 DC.FACTION_TEXT = {
     [DC.N] = "|cffFFCC00Contested|r",
@@ -32,67 +30,71 @@ DC.FACTION_TEXT = {
     [DC.H] = "|cffFF4444Horde|r",
 }
 
--- ── Zone anchor points ────────────────────────────────────────
+-- ── Zone rectangles (from WorldMapArea.dbc) ───────────────────
 -- [areaId] = { c = continent (1 Kalimdor, 2 Eastern Kingdoms),
---              x, y = a point INSIDE the zone as fractions of the
---              continent map (x from left, y from top) }
--- Cities are NOT listed: they sit inside home zones and would
--- double-paint the parent zone's highlight.
+--              l, t, w, h = exact fractions of the continent map }
 DC.MAP = {
-    -- Eastern Kingdoms (continent 2)
-    [3430] = { c = 2, x = 0.555, y = 0.075, name = "Eversong Woods" },
-    [3433] = { c = 2, x = 0.565, y = 0.130, name = "Ghostlands" },
-    [139]  = { c = 2, x = 0.560, y = 0.230, name = "Eastern Plaguelands" },
-    [28]   = { c = 2, x = 0.475, y = 0.240, name = "Western Plaguelands" },
-    [85]   = { c = 2, x = 0.390, y = 0.245, name = "Tirisfal Glades" },
-    [130]  = { c = 2, x = 0.370, y = 0.315, name = "Silverpine Forest" },
-    [36]   = { c = 2, x = 0.475, y = 0.295, name = "Alterac Mountains" },
-    [267]  = { c = 2, x = 0.450, y = 0.340, name = "Hillsbrad Foothills" },
-    [45]   = { c = 2, x = 0.530, y = 0.355, name = "Arathi Highlands" },
-    [47]   = { c = 2, x = 0.575, y = 0.320, name = "The Hinterlands" },
-    [11]   = { c = 2, x = 0.510, y = 0.435, name = "Wetlands" },
-    [38]   = { c = 2, x = 0.560, y = 0.510, name = "Loch Modan" },
-    [1]    = { c = 2, x = 0.455, y = 0.530, name = "Dun Morogh" },
-    [51]   = { c = 2, x = 0.505, y = 0.585, name = "Searing Gorge" },
-    [3]    = { c = 2, x = 0.575, y = 0.575, name = "Badlands" },
-    [46]   = { c = 2, x = 0.520, y = 0.630, name = "Burning Steppes" },
-    [44]   = { c = 2, x = 0.560, y = 0.680, name = "Redridge Mountains" },
-    [12]   = { c = 2, x = 0.480, y = 0.680, name = "Elwynn Forest" },
-    [40]   = { c = 2, x = 0.415, y = 0.720, name = "Westfall" },
-    [10]   = { c = 2, x = 0.470, y = 0.740, name = "Duskwood" },
-    [41]   = { c = 2, x = 0.525, y = 0.740, name = "Deadwind Pass" },
-    [8]    = { c = 2, x = 0.585, y = 0.715, name = "Swamp of Sorrows" },
-    [4]    = { c = 2, x = 0.560, y = 0.790, name = "Blasted Lands" },
-    [33]   = { c = 2, x = 0.435, y = 0.825, name = "Stranglethorn Vale" },
-    -- Kalimdor (continent 1)
-    [141]  = { c = 1, x = 0.395, y = 0.115, name = "Teldrassil" },
-    [3525] = { c = 1, x = 0.315, y = 0.105, name = "Bloodmyst Isle" },
-    [3524] = { c = 1, x = 0.315, y = 0.165, name = "Azuremyst Isle" },
-    [148]  = { c = 1, x = 0.445, y = 0.175, name = "Darkshore" },
-    [493]  = { c = 1, x = 0.560, y = 0.155, name = "Moonglade" },
-    [618]  = { c = 1, x = 0.610, y = 0.205, name = "Winterspring" },
-    [361]  = { c = 1, x = 0.495, y = 0.235, name = "Felwood" },
-    [331]  = { c = 1, x = 0.500, y = 0.305, name = "Ashenvale" },
-    [16]   = { c = 1, x = 0.635, y = 0.275, name = "Azshara" },
-    [406]  = { c = 1, x = 0.435, y = 0.360, name = "Stonetalon Mountains" },
-    [14]   = { c = 1, x = 0.615, y = 0.395, name = "Durotar" },
-    [17]   = { c = 1, x = 0.535, y = 0.455, name = "The Barrens" },
-    [405]  = { c = 1, x = 0.395, y = 0.455, name = "Desolace" },
-    [215]  = { c = 1, x = 0.470, y = 0.475, name = "Mulgore" },
-    [15]   = { c = 1, x = 0.600, y = 0.525, name = "Dustwallow Marsh" },
-    [357]  = { c = 1, x = 0.400, y = 0.590, name = "Feralas" },
-    [400]  = { c = 1, x = 0.505, y = 0.575, name = "Thousand Needles" },
-    [490]  = { c = 1, x = 0.465, y = 0.665, name = "Un'Goro Crater" },
-    [440]  = { c = 1, x = 0.560, y = 0.655, name = "Tanaris" },
-    [1377] = { c = 1, x = 0.400, y = 0.680, name = "Silithus" },
+    [331] = { c = 1, l = 0.4176, t = 0.3313, w = 0.1567, h = 0.1567, name = "Ashenvale" },
+    [16] = { c = 1, l = 0.5528, t = 0.3040, w = 0.1378, h = 0.1378, name = "Azshara" },
+    [3524] = { c = 1, l = 0.2708, t = 0.2226, w = 0.1106, h = 0.1106, name = "Azuremyst Isle" },
+    [3525] = { c = 1, l = 0.2593, t = 0.1396, w = 0.0887, h = 0.0887, name = "Bloodmyst Isle" },
+    [148] = { c = 1, l = 0.3838, t = 0.1821, w = 0.1780, h = 0.1780, name = "Darkshore" },
+    [1657] = { c = 1, l = 0.3839, t = 0.1044, w = 0.0288, h = 0.0288, name = "Darnassus" },
+    [405] = { c = 1, l = 0.3487, t = 0.5033, w = 0.1222, h = 0.1222, name = "Desolace" },
+    [14] = { c = 1, l = 0.5171, t = 0.4480, w = 0.1437, h = 0.1437, name = "Durotar" },
+    [15] = { c = 1, l = 0.4903, t = 0.6046, w = 0.1427, h = 0.1427, name = "Dustwallow Marsh" },
+    [361] = { c = 1, l = 0.4192, t = 0.2310, w = 0.1563, h = 0.1563, name = "Felwood" },
+    [357] = { c = 1, l = 0.3159, t = 0.6182, w = 0.1889, h = 0.1889, name = "Feralas" },
+    [493] = { c = 1, l = 0.5013, t = 0.1756, w = 0.0627, h = 0.0628, name = "Moonglade" },
+    [215] = { c = 1, l = 0.4081, t = 0.5329, w = 0.1396, h = 0.1396, name = "Mulgore" },
+    [1637] = { c = 1, l = 0.5638, t = 0.4291, w = 0.0381, h = 0.0381, name = "Orgrimmar" },
+    [1377] = { c = 1, l = 0.3948, t = 0.7646, w = 0.0947, h = 0.0947, name = "Silithus" },
+    [406] = { c = 1, l = 0.3756, t = 0.4029, w = 0.1327, h = 0.1327, name = "Stonetalon Mountains" },
+    [440] = { c = 1, l = 0.4697, t = 0.7612, w = 0.1875, h = 0.1875, name = "Tanaris" },
+    [141] = { c = 1, l = 0.3601, t = 0.0395, w = 0.1384, h = 0.1383, name = "Teldrassil" },
+    [17] = { c = 1, l = 0.3925, t = 0.4560, w = 0.2754, h = 0.2754, name = "The Barrens" },
+    [3557] = { c = 1, l = 0.2862, t = 0.2558, w = 0.0287, h = 0.0287, name = "The Exodar" },
+    [400] = { c = 1, l = 0.4755, t = 0.6834, w = 0.1196, h = 0.1196, name = "Thousand Needles" },
+    [1638] = { c = 1, l = 0.4497, t = 0.5564, w = 0.0284, h = 0.0284, name = "Thunder Bluff" },
+    [490] = { c = 1, l = 0.4493, t = 0.7649, w = 0.1005, h = 0.1005, name = "Un'Goro Crater" },
+    [618] = { c = 1, l = 0.4724, t = 0.1739, w = 0.1929, h = 0.1929, name = "Winterspring" },
+    [36] = { c = 2, l = 0.4268, t = 0.3564, w = 0.0687, h = 0.0688, name = "Alterac Mountains" },
+    [45] = { c = 2, l = 0.4673, t = 0.4166, w = 0.0884, h = 0.0884, name = "Arathi Highlands" },
+    [3] = { c = 2, l = 0.4971, t = 0.6286, w = 0.0611, h = 0.0611, name = "Badlands" },
+    [4] = { c = 2, l = 0.4765, t = 0.8009, w = 0.0822, h = 0.0823, name = "Blasted Lands" },
+    [46] = { c = 2, l = 0.4526, t = 0.6706, w = 0.0719, h = 0.0719, name = "Burning Steppes" },
+    [41] = { c = 2, l = 0.4665, t = 0.7751, w = 0.0614, h = 0.0614, name = "Deadwind Pass" },
+    [1] = { c = 2, l = 0.4018, t = 0.5545, w = 0.1209, h = 0.1209, name = "Dun Morogh" },
+    [10] = { c = 2, l = 0.4256, t = 0.7695, w = 0.0663, h = 0.0663, name = "Duskwood" },
+    [139] = { c = 2, l = 0.5022, t = 0.2752, w = 0.0989, h = 0.0990, name = "Eastern Plaguelands" },
+    [12] = { c = 2, l = 0.4083, t = 0.7041, w = 0.0852, h = 0.0853, name = "Elwynn Forest" },
+    [3430] = { c = 2, l = 0.4973, t = 0.0934, w = 0.1209, h = 0.1209, name = "Eversong Woods" },
+    [3433] = { c = 2, l = 0.5168, t = 0.1956, w = 0.0810, h = 0.0810, name = "Ghostlands" },
+    [267] = { c = 2, l = 0.4199, t = 0.3969, w = 0.0785, h = 0.0786, name = "Hillsbrad Foothills" },
+    [1537] = { c = 2, l = 0.4635, t = 0.5800, w = 0.0194, h = 0.0194, name = "Ironforge" },
+    [38] = { c = 2, l = 0.4950, t = 0.5769, w = 0.0677, h = 0.0678, name = "Loch Modan" },
+    [44] = { c = 2, l = 0.4846, t = 0.7275, w = 0.0533, h = 0.0533, name = "Redridge Mountains" },
+    [51] = { c = 2, l = 0.4540, t = 0.6363, w = 0.0548, h = 0.0548, name = "Searing Gorge" },
+    [3487] = { c = 2, l = 0.5442, t = 0.1261, w = 0.0297, h = 0.0297, name = "Silvermoon City" },
+    [130] = { c = 2, l = 0.3614, t = 0.3503, w = 0.1031, h = 0.1031, name = "Silverpine Forest" },
+    [1519] = { c = 2, l = 0.4037, t = 0.7062, w = 0.0426, h = 0.0427, name = "Stormwind City" },
+    [33] = { c = 2, l = 0.3915, t = 0.8230, w = 0.1566, h = 0.1567, name = "Stranglethorn Vale" },
+    [8] = { c = 2, l = 0.5006, t = 0.7660, w = 0.0563, h = 0.0563, name = "Swamp of Sorrows" },
+    [47] = { c = 2, l = 0.4847, t = 0.3576, w = 0.0945, h = 0.0945, name = "The Hinterlands" },
+    [85] = { c = 2, l = 0.3716, t = 0.2703, w = 0.1109, h = 0.1110, name = "Tirisfal Glades" },
+    [1497] = { c = 2, l = 0.4246, t = 0.3425, w = 0.0235, h = 0.0236, name = "Undercity" },
+    [28] = { c = 2, l = 0.4358, t = 0.2877, w = 0.1055, h = 0.1056, name = "Western Plaguelands" },
+    [40] = { c = 2, l = 0.3720, t = 0.7579, w = 0.0859, h = 0.0859, name = "Westfall" },
+    [11] = { c = 2, l = 0.4556, t = 0.4908, w = 0.1015, h = 0.1015, name = "Wetlands" },
 }
 
--- Probe offsets: primary anchor first, then nearby points as backup
-local PROBES = {
-    { 0, 0 },
-    {  0.015, 0 }, { -0.015, 0 }, { 0,  0.015 }, { 0, -0.015 },
-    {  0.025,  0.02 }, { -0.025, -0.02 }, {  0.03, 0 }, { -0.03, 0 },
-}
+-- Paint big zones first so small zones (cities, islands) stay on top
+DC.DRAW_ORDER = {}
+for zoneId in pairs(DC.MAP) do table.insert(DC.DRAW_ORDER, zoneId) end
+table.sort(DC.DRAW_ORDER, function(a, b)
+    local ma, mb = DC.MAP[a], DC.MAP[b]
+    return (ma.w * ma.h) > (mb.w * mb.h)
+end)
 
 -- ── Overlay pool ──────────────────────────────────────────────
 DC.overlays = {}
@@ -101,15 +103,14 @@ local overlayParent = CreateFrame("Frame", "DarkCenturiesOverlayFrame", WorldMap
 overlayParent:SetAllPoints(WorldMapDetailFrame)
 overlayParent:SetFrameLevel(WorldMapDetailFrame:GetFrameLevel() + 1)
 
-local function GetOverlay(zoneId)
+local function GetOverlay(zoneId, layer)
     local o = DC.overlays[zoneId]
     if o then return o end
     o = {}
-    o.tex = overlayParent:CreateTexture(nil, "ARTWORK")
+    -- sublayer by draw order so big zones sit under small ones
+    o.tex = overlayParent:CreateTexture(nil, "ARTWORK", nil, layer or 0)
+    o.tex:SetTexture("Interface/Buttons/WHITE8X8")
     o.tex:Hide()
-    o.dot = overlayParent:CreateTexture(nil, "ARTWORK")
-    o.dot:SetTexture("Interface\\Buttons\\WHITE8X8")  -- pure white: tints correctly
-    o.dot:Hide()
     o.pct = overlayParent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     o.pct:Hide()
     DC.overlays[zoneId] = o
@@ -118,7 +119,7 @@ end
 
 local function HideAllOverlays()
     for _, o in pairs(DC.overlays) do
-        o.tex:Hide(); o.dot:Hide(); o.pct:Hide()
+        o.tex:Hide(); o.pct:Hide()
     end
 end
 
@@ -134,60 +135,29 @@ local function RefreshOverlays()
     local height = WorldMapDetailFrame:GetHeight()
     if width == 0 or height == 0 then return end
 
-    local painted = {}  -- fileName -> true, prevents double-painting a zone
-
-    for zoneId, m in pairs(DC.MAP) do
+    for order = 1, #DC.DRAW_ORDER do
+        local zoneId = DC.DRAW_ORDER[order]
+        local m = DC.MAP[zoneId]
         if m.c == cont then
             local s = DC.zoneState[zoneId]
             if s then
                 local col = DC.COLOR[s.faction] or DC.COLOR[DC.N]
-                local o = GetOverlay(zoneId)
-                local drawn = false
+                -- sublayer 0-7 max; spread draw order across it
+                local o = GetOverlay(zoneId, math.min(7, math.floor(order / 8)))
 
-                for i = 1, #PROBES do
-                    local px = m.x + PROBES[i][1]
-                    local py = m.y + PROBES[i][2]
-                    local fileName, texPctX, texPctY, texX, texY, scrollX, scrollY =
-                        UpdateMapHighlight(px, py)
-
-                    -- Guard exactly like Blizzard's WorldMapFrame does:
-                    -- both dimensions must be positive, and the texture
-                    -- file must actually load (missing file = black box).
-                    if fileName and not painted[fileName]
-                        and texX and texX > 0 and texY and texY > 0 then
-                        local okTex = o.tex:SetTexture(
-                            "Interface\\WorldMap\\" .. fileName .. "\\" .. fileName .. "Highlight")
-                        if okTex then
-                            o.tex:SetTexCoord(0, texPctX, 0, texPctY)
-                            o.tex:SetVertexColor(col.r, col.g, col.b, DC.ALPHA)
-                            o.tex:ClearAllPoints()
-                            o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
-                                scrollX * width, -scrollY * height)
-                            o.tex:SetWidth(texX * width)
-                            o.tex:SetHeight(texY * height)
-                            o.tex:Show()
-                            painted[fileName] = true
-                            drawn = true
-                            break
-                        end
-                    end
-                end
-
-                if not drawn then
-                    -- Visible colored marker, never a black box
-                    o.dot:SetVertexColor(col.r, col.g, col.b, 0.85)
-                    o.dot:ClearAllPoints()
-                    o.dot:SetPoint("CENTER", WorldMapDetailFrame, "TOPLEFT",
-                        m.x * width, -m.y * height)
-                    o.dot:SetWidth(12); o.dot:SetHeight(12)
-                    o.dot:Show()
-                end
+                o.tex:SetVertexColor(col.r, col.g, col.b, DC.ALPHA)
+                o.tex:ClearAllPoints()
+                o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
+                    m.l * width, -m.t * height)
+                o.tex:SetWidth(m.w * width)
+                o.tex:SetHeight(m.h * height)
+                o.tex:Show()
 
                 -- Contested zones show the current balance
                 if s.faction == DC.N and s.progress ~= 50 then
                     o.pct:ClearAllPoints()
                     o.pct:SetPoint("CENTER", WorldMapDetailFrame, "TOPLEFT",
-                        m.x * width, -m.y * height)
+                        (m.l + m.w / 2) * width, -(m.t + m.h / 2) * height)
                     if s.progress > 50 then
                         o.pct:SetText("|cffFF4444" .. s.progress .. "%|r")
                     else
