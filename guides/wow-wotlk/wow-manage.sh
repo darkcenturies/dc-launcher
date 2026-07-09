@@ -2221,7 +2221,7 @@ Environment=OLLAMA_HOST=0.0.0.0:11434
     local dist="$SERVER_DIR/modules/mod-ollama-chat/conf/mod_ollama_chat.conf.dist"
     mkdir -p "$conf_dir"
     if [ -f "$dist" ]; then
-        sed -e "s|^OllamaChat.Url = .*|OllamaChat.Url = http://host.docker.internal:11434/api/generate|"             -e "s|^OllamaChat.Model = .*|OllamaChat.Model = $model|"             -e "s|^OllamaChat.EnableWhisperReplies = 0|OllamaChat.EnableWhisperReplies = 1|"             -e "s|^OllamaChat.EnableRPPersonalities = 0|OllamaChat.EnableRPPersonalities = 1|"             -e "s|^OllamaChat.EnableSentimentTracking = 0|OllamaChat.EnableSentimentTracking = 1|"             -e "s|^OllamaChat.MaxConcurrentQueries = .*|OllamaChat.MaxConcurrentQueries = 4|"             "$dist" > "$conf_dir/mod_ollama_chat.conf"
+        sed -e "s|^OllamaChat.Url = .*|OllamaChat.Url = http://host.docker.internal:11434/api/generate|"             -e "s|^OllamaChat.Model = .*|OllamaChat.Model = $model|"             -e "s|^OllamaChat.EnableWhisperReplies = 0|OllamaChat.EnableWhisperReplies = 1|"             -e "s|^OllamaChat.EnableRPPersonalities = 0|OllamaChat.EnableRPPersonalities = 1|"             -e "s|^OllamaChat.EnableSentimentTracking = 0|OllamaChat.EnableSentimentTracking = 1|"             -e "s|^OllamaChat.MaxConcurrentQueries = .*|OllamaChat.MaxConcurrentQueries = 4|"             -e "s|^OllamaChat.EnableTypingSimulation = 0|OllamaChat.EnableTypingSimulation = 1|"             -e "s|^OllamaChat.TypingSimulationDelayPerChar = .*|OllamaChat.TypingSimulationDelayPerChar = 150|"             "$dist" > "$conf_dir/mod_ollama_chat.conf"
         print_success "Wrote $conf_dir/mod_ollama_chat.conf"
     else
         print_warning "conf.dist not found — install the module first."
