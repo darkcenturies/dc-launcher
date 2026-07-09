@@ -8,8 +8,14 @@ local DC = {}
 
 -- ── Config ──────────────────────────────────────────────────
 DC.CAPTURE_PER_KILL  = 1      -- progress points per PvP kill (1 kill = 1%)
-DC.DECAY_PER_TICK    = 1      -- points back toward 50 per tick (when no fighting)
-DC.DECAY_TICK_MS     = 30000  -- 30 seconds
+DC.DECAY_PER_TICK    = 0      -- decay disabled: progress never depletes on its own
+DC.DECAY_TICK_MS     = 30000  -- (unused while decay is 0)
+-- Autonomous war: contested zones shift on their own, simulating the
+-- hundreds of bots skirmishing across the world (bot-vs-bot kills also
+-- count for real via OnKillPlayer — bots are Player objects)
+DC.WAR_TICK_MS       = 180000 -- a war pulse every 3 minutes
+DC.WAR_SHIFT_CHANCE  = 0.35   -- chance per contested zone per pulse
+DC.WAR_SHIFT_MAX     = 2      -- shift magnitude 1..2 points
 DC.CONTROL_THRESHOLD = 30     -- <=30 = Alliance control, >=70 = Horde control
 DC.XP_BONUS_PCT      = 0.25   -- 25% bonus XP in zones your faction controls
 
@@ -277,6 +283,7 @@ end
 
 -- ── Decay tick ───────────────────────────────────────────────
 local function DecayTick()
+    if DC.DECAY_PER_TICK <= 0 then return end
     for zoneId, s in pairs(DC.state) do
         local zone = DC.ZONES[zoneId]
         if zone and not zone.locked and s.progress ~= 50 then
@@ -309,6 +316,28 @@ RegisterPlayerEvent(27, OnUpdateZone)
 RegisterPlayerEvent(3,  OnLogin)
 
 CreateLuaEvent(DecayTick, DC.DECAY_TICK_MS, 0)
+
+-- The war rages even when nobody is watching: each pulse, some
+-- contested front lines move as off-screen battles are won and lost
+local function WarTick()
+    for zoneId, st in pairs(DC.state) do
+        local zone = DC.ZONES[zoneId]
+        if zone and not zone.locked and math.random() < DC.WAR_SHIFT_CHANCE then
+            local oldFac = ZoneFaction(zoneId)
+            local delta = math.random(1, DC.WAR_SHIFT_MAX)
+            if math.random(2) == 1 then delta = -delta end
+            st.progress = math.max(0, math.min(100, st.progress + delta))
+            local newFac = ZoneFaction(zoneId)
+            if newFac ~= oldFac then
+                OnZoneFlip(zoneId, newFac, oldFac)
+            else
+                SaveZone(zoneId)
+                BroadcastZoneState(zoneId)
+            end
+        end
+    end
+end
+CreateLuaEvent(WarTick, DC.WAR_TICK_MS, 0)
 
 -- Full-state rebroadcast so clients that /reload (clearing their addon
 -- cache mid-session) resync within a minute without relogging
