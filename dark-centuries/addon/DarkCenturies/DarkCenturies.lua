@@ -24,6 +24,15 @@ DC.COLOR = {
 }
 DC.ALPHA = 0.32
 
+-- Additive tints: pure single-hue so zones color-shift instead of
+-- whiting out (additive light on a bright map clips if every channel
+-- gets energy; one channel alone just shifts the hue)
+DC.ADD_COLOR = {
+    [DC.N] = { r = 0.85, g = 0.55, b = 0.00 },  -- amber   contested
+    [DC.A] = { r = 0.00, g = 0.15, b = 1.00 },  -- blue    Alliance
+    [DC.H] = { r = 1.00, g = 0.00, b = 0.00 },  -- red     Horde
+}
+
 DC.FACTION_TEXT = {
     [DC.N] = "|cffFFCC00Contested|r",
     [DC.A] = "|cff4477FFAlliance|r",
@@ -172,20 +181,20 @@ local function RefreshOverlays()
                     local tX = texX * width
                     local tY = texY * height
                     if tX > 0 and tY > 0 then
-                        -- Our own alpha-masked copy of the zone highlight
-                        -- shape (shipped in shapes/, converted from the
-                        -- client blps). Normal blending, so the faction
-                        -- color renders solid and saturated.
+                        -- Blizzard's own highlight blp rendered additively
+                        -- (as WorldMapFrame.xml does), desaturated so the
+                        -- tint is pure, colored with a single-hue channel
                         local sep = string.char(92)
-                        local path = "Interface" .. sep .. "AddOns" .. sep
-                            .. "DarkCenturies" .. sep .. "shapes" .. sep .. fileName
+                        local path = "Interface" .. sep .. "WorldMap" .. sep
+                            .. fileName .. sep .. fileName .. "Highlight"
+                        local addCol = DC.ADD_COLOR[s.faction] or DC.ADD_COLOR[DC.N]
                         local okTex = o.tex:SetTexture(path)
                         if okTex and o.tex:GetTexture() then
                             o.tex2:Hide()
-                            o.tex:SetBlendMode("BLEND")
-                            o.tex:SetDesaturated(nil)
+                            o.tex:SetBlendMode("ADD")
+                            o.tex:SetDesaturated(1)
                             o.tex:SetTexCoord(0, texPctX, 0, texPctY)
-                            o.tex:SetVertexColor(col.r, col.g, col.b, 0.75)
+                            o.tex:SetVertexColor(addCol.r, addCol.g, addCol.b, 0.8)
                             o.tex:ClearAllPoints()
                             o.tex:SetPoint("TOPLEFT", WorldMapDetailFrame, "TOPLEFT",
                                 scrollX * width, -scrollY * height)
