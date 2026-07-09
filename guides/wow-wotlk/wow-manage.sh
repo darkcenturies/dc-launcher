@@ -2223,6 +2223,11 @@ Environment=OLLAMA_HOST=0.0.0.0:11434
     if [ -f "$dist" ]; then
         sed -e "s|^OllamaChat.Url = .*|OllamaChat.Url = http://host.docker.internal:11434/api/generate|"             -e "s|^OllamaChat.Model = .*|OllamaChat.Model = $model|"             -e "s|^OllamaChat.EnableWhisperReplies = 0|OllamaChat.EnableWhisperReplies = 1|"             -e "s|^OllamaChat.EnableRPPersonalities = 0|OllamaChat.EnableRPPersonalities = 1|"             -e "s|^OllamaChat.EnableSentimentTracking = 0|OllamaChat.EnableSentimentTracking = 1|"             -e "s|^OllamaChat.MaxConcurrentQueries = .*|OllamaChat.MaxConcurrentQueries = 4|"             -e "s|^OllamaChat.EnableTypingSimulation = 0|OllamaChat.EnableTypingSimulation = 1|"             -e "s|^OllamaChat.TypingSimulationDelayPerChar = .*|OllamaChat.TypingSimulationDelayPerChar = 150|"             "$dist" > "$conf_dir/mod_ollama_chat.conf"
         print_success "Wrote $conf_dir/mod_ollama_chat.conf"
+        # Softer chat prompt: real person first, persona as flavor.
+        # Appended after the base conf — the last occurrence of a key wins.
+        cat >> "$conf_dir/mod_ollama_chat.conf" <<'DC_TPL'
+OllamaChat.ChatPromptTemplate = "You are a real person playing Wrath-era WoW. Name: {bot_name}, Level: {bot_level} {bot_class}. Your personality leans toward {bot_personality_name} ({bot_personality}) but you are a well-rounded human first - that persona is subtle background flavor, never a script to repeat. {sentiment_info} {chat_history} A level {player_level} {player_class} named {player_name} said: '{player_message}'. {extra_info} Respond to what they actually said, the way a real player would: you can be friendly, curious, joking, helpful, or busy - vary it naturally. You are open to making friends and you remember people you like. Reply casually in under 25 words. Never act like a narrator - just talk like a player."
+DC_TPL
     else
         print_warning "conf.dist not found — install the module first."
     fi
