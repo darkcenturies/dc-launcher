@@ -2167,7 +2167,7 @@ configure_ollama_chat() {
 
     # 8B chats far more coherently; use it when a GPU can host it
     local model="llama3.2:3b"
-    command -v nvidia-smi >/dev/null 2>&1 && model="llama3.1:8b"
+    command -v nvidia-smi >/dev/null 2>&1 && model="dolphin3:8b"
 
     # 1. Ollama installed?
     if ! command -v ollama >/dev/null 2>&1; then
@@ -2228,6 +2228,7 @@ Environment=OLLAMA_KEEP_ALIVE=-1
         # War knowledge for bot conversations (RAG): bots can explain the
         # Dark Centuries war accurately when players ask about it
         mkdir -p "$SERVER_DIR/modules/mod-ollama-chat/data/rag"
+        curl -fsSL "https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/guides/wow-wotlk/ollama-chat/rag/wow_wotlk_basics.json?cb=$(date +%s)"             -o "$SERVER_DIR/modules/mod-ollama-chat/data/rag/wow_wotlk_basics.json" 2>/dev/null || true
         if curl -fsSL "https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/guides/wow-wotlk/ollama-chat/rag/dc_war.json?cb=$(date +%s)"             -o "$SERVER_DIR/modules/mod-ollama-chat/data/rag/dc_war.json" 2>/dev/null; then
             sed -i 's|^OllamaChat.EnableRAG = 0|OllamaChat.EnableRAG = 1|' "$conf_dir/mod_ollama_chat.conf"
             print_success "Installed war knowledge base (RAG enabled)"

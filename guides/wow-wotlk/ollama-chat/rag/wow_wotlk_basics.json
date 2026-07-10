@@ -1,0 +1,184 @@
+[
+  {
+    "id": "wotlk_leveling_travel",
+    "title": "Leveling, Maps and Travel in WotLK",
+    "content": "Max level is 80. Every character has a built-in world map opened with the M key; maps are never bought or found. Travel options: on foot, mounts (apprentice riding at level 20, epic at 40, flying at 60 in Outland/Northrend, cold weather flying at 77 for Northrend), flight paths between discovered flight masters, boats and zeppelins between continents, and the hearthstone which teleports you to your bound inn every 30 minutes. Mages can teleport and open portals to capitals.",
+    "keywords": [
+      "map",
+      "travel",
+      "mount",
+      "riding",
+      "flight path",
+      "flying",
+      "hearthstone",
+      "boat",
+      "zeppelin",
+      "teleport",
+      "how do i get to",
+      "levels",
+      "max level"
+    ],
+    "tags": [
+      "wotlk",
+      "basics"
+    ]
+  },
+  {
+    "id": "wotlk_mail_banks",
+    "title": "Mail, Banks and Auction House",
+    "content": "Mailboxes in towns send and receive letters, items and gold between characters; mail from other players arrives after a short delay. Banks store items and offer extra bag slots; guild banks are shared storage. The Auction House in capital cities is where players buy and sell items to each other. Nothing else happens at mailboxes or banks - no fighting, no spawns.",
+    "keywords": [
+      "mail",
+      "mailbox",
+      "bank",
+      "auction house",
+      "ah",
+      "send items",
+      "storage",
+      "guild bank"
+    ],
+    "tags": [
+      "wotlk",
+      "basics"
+    ]
+  },
+  {
+    "id": "wotlk_dungeons_raids",
+    "title": "Dungeons, Raids and the Dungeon Finder",
+    "content": "5-player dungeons run from Ragefire Chasm at low levels through Northrend heroics at 80. Patch 3.3 added the Dungeon Finder (LFG tool) which matches groups automatically and teleports them in. Level 80 heroics award Emblems of Triumph used to buy gear. Raids are 10 or 25 player: Naxxramas, Ulduar, Trial of the Crusader, and Icecrown Citadel where the Lich King is the final boss.",
+    "keywords": [
+      "dungeon",
+      "heroic",
+      "raid",
+      "lfg",
+      "dungeon finder",
+      "emblem",
+      "naxxramas",
+      "ulduar",
+      "icecrown",
+      "lich king",
+      "group",
+      "tank",
+      "healer"
+    ],
+    "tags": [
+      "wotlk",
+      "dungeons"
+    ]
+  },
+  {
+    "id": "wotlk_pvp_systems",
+    "title": "PvP: Battlegrounds, Arenas and Wintergrasp",
+    "content": "Battlegrounds: Warsong Gulch (capture the flag), Arathi Basin (hold bases), Alterac Valley (large scale), Eye of the Storm, Strand of the Ancients, and Isle of Conquest. Arenas are rated 2v2, 3v3 and 5v5 matches earning arena points for gear. Wintergrasp in Northrend is a zone-wide siege battle every few hours. Honor from kills buys PvP gear. On this server there is also the Dark Centuries territory war across classic zones.",
+    "keywords": [
+      "battleground",
+      "bg",
+      "arena",
+      "rated",
+      "warsong",
+      "arathi basin",
+      "alterac valley",
+      "wintergrasp",
+      "honor",
+      "pvp gear"
+    ],
+    "tags": [
+      "wotlk",
+      "pvp"
+    ]
+  },
+  {
+    "id": "wotlk_classes_specs",
+    "title": "Classes, Talents and Dual Spec",
+    "content": "Ten classes including the Death Knight hero class which starts at level 55. Talent points are earned each level from 10 and spent across three trees; builds are called specs (like frost mage or prot warrior). Dual Talent Specialization, bought from class trainers for 1000 gold at level 40, lets you keep two specs and swap between them. Glyphs made by scribes modify abilities.",
+    "keywords": [
+      "class",
+      "talent",
+      "spec",
+      "dual spec",
+      "death knight",
+      "glyph",
+      "respec",
+      "build",
+      "tank spec",
+      "heal spec"
+    ],
+    "tags": [
+      "wotlk",
+      "classes"
+    ]
+  },
+  {
+    "id": "wotlk_professions",
+    "title": "Professions",
+    "content": "Two primary professions per character from: alchemy, blacksmithing, enchanting, engineering, herbalism, inscription, jewelcrafting, leatherworking, mining, skinning, tailoring. Everyone can also learn cooking, fishing and first aid. Professions cap at 450 skill (Grand Master) in Wrath. Gathering professions feed crafting ones; inscription makes glyphs, jewelcrafting cuts gems for socketed gear.",
+    "keywords": [
+      "profession",
+      "alchemy",
+      "blacksmithing",
+      "enchanting",
+      "engineering",
+      "herbalism",
+      "inscription",
+      "jewelcrafting",
+      "leatherworking",
+      "mining",
+      "skinning",
+      "tailoring",
+      "cooking",
+      "fishing",
+      "craft"
+    ],
+    "tags": [
+      "wotlk",
+      "professions"
+    ]
+  },
+  {
+    "id": "wotlk_economy_terms",
+    "title": "Common Player Terms",
+    "content": "Common slang: ganking is killing a much weaker player, camping is repeatedly killing someone at their corpse, kiting is attacking while staying out of reach, pulling is starting a fight with one enemy group, wiping is the whole group dying, ninja-ing is taking loot you should not, twinking is gearing a low level character heavily, farming is repeatedly gathering mobs or materials, grinding is repetitive leveling. BoE items can be traded, BoP items bind when picked up.",
+    "keywords": [
+      "gank",
+      "camp",
+      "kite",
+      "pull",
+      "wipe",
+      "ninja",
+      "twink",
+      "farm",
+      "grind",
+      "boe",
+      "bop",
+      "aggro",
+      "dps",
+      "tank",
+      "healer",
+      "cc"
+    ],
+    "tags": [
+      "wotlk",
+      "slang"
+    ]
+  },
+  {
+    "id": "wotlk_death_rez",
+    "title": "Death and Resurrection",
+    "content": "When you die you become a ghost at a graveyard and run back to your corpse to resurrect, or take resurrection sickness from the spirit healer. Healers with resurrection spells can revive dead players. In PvP, dying to players costs nothing but time - there is no durability loss from PvP deaths, only from PvE deaths.",
+    "keywords": [
+      "die",
+      "death",
+      "resurrect",
+      "rez",
+      "ghost",
+      "corpse",
+      "graveyard",
+      "spirit healer",
+      "durability"
+    ],
+    "tags": [
+      "wotlk",
+      "basics"
+    ]
+  }
+]
