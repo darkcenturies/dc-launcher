@@ -164,3 +164,356 @@ open(p, 'w').write(s)
 print("world chatter patched")
 
 PYEOF_WORLD
+
+# Priority queue + presence gating: interactive replies (whisper > raid >
+# party > say/yell > guild > World > general) always outrank ambient
+# chatter, ambient work is capped to half the Ollama slots so a player
+# speaking in party AND world gets both answers while idle chatter
+# continues, and ambient World chatter only runs while a real player is
+# actually in the World channel.
+python3 - <<'PYEOF_PRIORITY'
+#!/usr/bin/env python3
+# DC: priority-aware QueryManager + per-channel presence gating for mod-ollama-chat.
+# Idempotent: each step checks a marker before applying.
+import sys
+
+import os
+SRC = os.environ['SERVER_DIR'] + '/modules/mod-ollama-chat/src/'
+
+def load(name):
+    with open(SRC + name, "r", encoding="utf-8") as f:
+        return f.read()
+
+def save(name, text):
+    with open(SRC + name, "w", encoding="utf-8") as f:
+        f.write(text)
+
+changed = []
+
+# ---------------------------------------------------------------- querymanager.h
+name = "mod-ollama-chat_querymanager.h"
+t = load(name)
+if "QUERY_PRIO_AMBIENT" not in t:
+    save(name, """#ifndef MOD_OLLAMA_CHAT_QUERYMANAGER_H
+#define MOD_OLLAMA_CHAT_QUERYMANAGER_H
+
+#include <string>
+#include <future>
+#include <mutex>
+#include <vector>
+#include <thread>
+#include <cstdint>
+
+std::string QueryOllamaAPI(const std::string& prompt);
+
+// DC: query priorities - lower value is answered first. Interactive replies
+// (whisper/raid/party/say) always jump ahead of ambient background chatter,
+// and ambient work may never occupy every Ollama slot, so a real player who
+// speaks in party AND world gets both answers while idle chatter continues.
+enum QueryPriority
+{
+    QUERY_PRIO_WHISPER  = 0,
+    QUERY_PRIO_RAID     = 1,
+    QUERY_PRIO_PARTY    = 2,
+    QUERY_PRIO_SAY      = 3,   // say / yell proximity chat
+    QUERY_PRIO_GUILD    = 4,
+    QUERY_PRIO_WORLD    = 5,   // World custom channel replies
+    QUERY_PRIO_GENERAL  = 6,   // General / other channel replies
+    QUERY_PRIO_AMBIENT  = 9    // random chatter, bot-to-bot, sentiment
+};
+
+class QueryManager {
+public:
+    QueryManager();
+    void setMaxConcurrentQueries(int maxQueries);
+    std::future<std::string> submitQuery(const std::string& prompt, int priority = QUERY_PRIO_AMBIENT);
+
+private:
+    struct QueryTask {
+        std::string prompt;
+        std::promise<std::string> promise;
+        int priority;
+        uint64_t seq;   // FIFO order within the same priority
+    };
+
+    void processQuery(std::string prompt, std::promise<std::string> promise, bool ambient);
+    void startNextLocked();   // caller must hold mutex_
+    int ambientCapLocked() const;
+
+    int maxConcurrentQueries; // 0 means no limit
+    int currentQueries;
+    int currentAmbient;       // ambient queries currently in flight
+    uint64_t nextSeq;
+    std::mutex mutex_;
+    std::vector<QueryTask> taskQueue;
+};
+
+#endif // MOD_OLLAMA_CHAT_QUERYMANAGER_H
+""")
+    changed.append(name)
+
+# ---------------------------------------------------------------- querymanager.cpp
+name = "mod-ollama-chat_querymanager.cpp"
+t = load(name)
+if "startNextLocked" not in t:
+    save(name, """#include "mod-ollama-chat_querymanager.h"
+#include "mod-ollama-chat_config.h"  // For g_MaxConcurrentQueries
+#include <algorithm>
+#include <climits>
+#include <thread>
+
+// Constructor: initialize with the configuration value.
+QueryManager::QueryManager()
+    : maxConcurrentQueries(g_MaxConcurrentQueries), currentQueries(0), currentAmbient(0), nextSeq(0)
+{
+}
+
+// Set maximum concurrent queries (0 means no limit).
+void QueryManager::setMaxConcurrentQueries(int maxQueries) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    maxConcurrentQueries = maxQueries;
+}
+
+// Ambient work may take at most half the slots so interactive replies to a
+// real player always have room to run immediately.
+int QueryManager::ambientCapLocked() const {
+    if (maxConcurrentQueries == 0)
+        return INT_MAX;
+    return std::max(1, maxConcurrentQueries / 2);
+}
+
+// Submit a query and return a future for the result.
+std::future<std::string> QueryManager::submitQuery(const std::string& prompt, int priority) {
+    std::promise<std::string> promise;
+    std::future<std::string> future = promise.get_future();
+
+    bool ambient = priority >= QUERY_PRIO_AMBIENT;
+    bool shouldRunNow = false;
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        // Shed excess ambient work instead of queueing it forever - callers
+        // treat an empty response as "skip this chatter line".
+        if (ambient) {
+            int pendingAmbient = 0;
+            for (auto const& task : taskQueue)
+                if (task.priority >= QUERY_PRIO_AMBIENT)
+                    ++pendingAmbient;
+            if (pendingAmbient >= 10) {
+                promise.set_value("");
+                return future;
+            }
+        }
+
+        bool slotFree = (maxConcurrentQueries == 0 || currentQueries < maxConcurrentQueries);
+        if (slotFree && (!ambient || currentAmbient < ambientCapLocked())) {
+            ++currentQueries;
+            if (ambient) ++currentAmbient;
+            shouldRunNow = true;
+        } else {
+            QueryTask task;
+            task.prompt = prompt;
+            task.promise = std::move(promise);
+            task.priority = priority;
+            task.seq = nextSeq++;
+            taskQueue.push_back(std::move(task));
+        }
+    }
+
+    if (shouldRunNow) {
+        std::thread(&QueryManager::processQuery, this, prompt, std::move(promise), ambient).detach();
+    }
+
+    return future;
+}
+
+// Process the query by calling the API and then handling any queued tasks.
+void QueryManager::processQuery(std::string prompt, std::promise<std::string> promise, bool ambient) {
+    std::string result = QueryOllamaAPI(prompt);
+    promise.set_value(result);
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    --currentQueries;
+    if (ambient) --currentAmbient;
+    startNextLocked();
+}
+
+// Start the most urgent eligible queued task (lowest priority value wins,
+// FIFO within the same priority; ambient respects its slot cap).
+void QueryManager::startNextLocked() {
+    if (taskQueue.empty())
+        return;
+    if (maxConcurrentQueries != 0 && currentQueries >= maxConcurrentQueries)
+        return;
+
+    size_t best = taskQueue.size();
+    for (size_t i = 0; i < taskQueue.size(); ++i) {
+        bool amb = taskQueue[i].priority >= QUERY_PRIO_AMBIENT;
+        if (amb && currentAmbient >= ambientCapLocked())
+            continue;
+        if (best == taskQueue.size()
+            || taskQueue[i].priority < taskQueue[best].priority
+            || (taskQueue[i].priority == taskQueue[best].priority && taskQueue[i].seq < taskQueue[best].seq))
+            best = i;
+    }
+    if (best == taskQueue.size())
+        return;
+
+    QueryTask task = std::move(taskQueue[best]);
+    taskQueue.erase(taskQueue.begin() + best);
+    bool amb = task.priority >= QUERY_PRIO_AMBIENT;
+    ++currentQueries;
+    if (amb) ++currentAmbient;
+    std::thread(&QueryManager::processQuery, this, task.prompt, std::move(task.promise), amb).detach();
+}
+""")
+    changed.append(name)
+
+# ---------------------------------------------------------------- api.h / api.cpp
+name = "mod-ollama-chat_api.h"
+t = load(name)
+old = "std::future<std::string> SubmitQuery(const std::string& prompt);"
+new = "std::future<std::string> SubmitQuery(const std::string& prompt, int priority = QUERY_PRIO_AMBIENT);"
+if old in t:
+    save(name, t.replace(old, new))
+    changed.append(name)
+else:
+    assert new in t, "api.h: SubmitQuery declaration not found"
+
+name = "mod-ollama-chat_api.cpp"
+t = load(name)
+old = """std::future<std::string> SubmitQuery(const std::string& prompt)
+{
+    return g_queryManager.submitQuery(prompt);
+}"""
+new = """std::future<std::string> SubmitQuery(const std::string& prompt, int priority)
+{
+    return g_queryManager.submitQuery(prompt, priority);
+}"""
+if old in t:
+    save(name, t.replace(old, new))
+    changed.append(name)
+else:
+    assert "submitQuery(prompt, priority)" in t, "api.cpp: SubmitQuery definition not found"
+
+# ---------------------------------------------------------------- handler.cpp
+name = "mod-ollama-chat_handler.cpp"
+t = load(name)
+if "queryPriority" not in t:
+    anchor = "bot->GetGroup() && bot->GetGroup() == player->GetGroup();\n"
+    assert anchor in t, "handler.cpp: tryIntent anchor not found"
+    insert = anchor + """
+        // DC: interactive replies outrank ambient chatter so a real player who
+        // speaks in party AND world gets both answers while idle chatter runs.
+        // Order: whisper > raid > party > say/yell > guild > World > general.
+        int queryPriority;
+        switch (sourceLocal)
+        {
+            case SRC_WHISPER_LOCAL: queryPriority = QUERY_PRIO_WHISPER; break;
+            case SRC_RAID_LOCAL:    queryPriority = QUERY_PRIO_RAID;    break;
+            case SRC_PARTY_LOCAL:   queryPriority = QUERY_PRIO_PARTY;   break;
+            case SRC_SAY_LOCAL:
+            case SRC_YELL_LOCAL:    queryPriority = QUERY_PRIO_SAY;     break;
+            case SRC_GUILD_LOCAL:
+            case SRC_OFFICER_LOCAL: queryPriority = QUERY_PRIO_GUILD;   break;
+            case SRC_GENERAL_LOCAL:
+                queryPriority = (channel && channel->GetName() == "World")
+                    ? QUERY_PRIO_WORLD : QUERY_PRIO_GENERAL;
+                break;
+            default:                queryPriority = QUERY_PRIO_GENERAL; break;
+        }
+        // Bot-to-bot conversations are background flavor - never let them
+        // crowd out a reply to a real player.
+        if (senderIsBot)
+            queryPriority = QUERY_PRIO_AMBIENT;
+"""
+    t = t.replace(anchor, insert, 1)
+
+    cap_old = "std::thread([botGuid, senderGuid, prompt, tryIntent, sourceLocal,"
+    cap_new = "std::thread([botGuid, senderGuid, prompt, tryIntent, queryPriority, sourceLocal,"
+    assert cap_old in t, "handler.cpp: thread capture anchor not found"
+    t = t.replace(cap_old, cap_new, 1)
+
+    assert "SubmitQuery(intentPrompt)" in t, "handler.cpp: intent SubmitQuery not found"
+    t = t.replace("SubmitQuery(intentPrompt)", "SubmitQuery(intentPrompt, queryPriority)", 1)
+    assert "SubmitQuery(workPrompt)" in t, "handler.cpp: work SubmitQuery not found"
+    t = t.replace("SubmitQuery(workPrompt)", "SubmitQuery(workPrompt, queryPriority)", 1)
+
+    save(name, t)
+    changed.append(name)
+
+# ---------------------------------------------------------------- random.cpp
+name = "mod-ollama-chat_random.cpp"
+t = load(name)
+if "realPlayerInWorldChannel" not in t:
+    anchor = """        if (!PlayerbotsMgr::instance().GetPlayerbotAI(player))
+            realPlayers.push_back(player);
+    }
+"""
+    assert anchor in t, "random.cpp: realPlayers anchor not found"
+    insert = anchor + """
+    // DC: ambient World chatter only runs while a real player is actually in
+    // the World channel - when they leave, the chatter (and its LLM cost)
+    // stops; when they rejoin, it resumes.
+    bool realPlayerInWorldChannel = false;
+    for (Player* rp : realPlayers)
+    {
+        ChannelMgr* rpMgr = ChannelMgr::forTeam(rp->GetTeamId());
+        Channel* rpCh = rpMgr ? rpMgr->GetChannel("World", rp, false) : nullptr;
+        if (rpCh && rp->IsInChannel(rpCh))
+        {
+            realPlayerInWorldChannel = true;
+            break;
+        }
+    }
+"""
+    t = t.replace(anchor, insert, 1)
+
+    gate_old = "if (!realPlayers.empty() && urand(0, 99) < 3)"
+    gate_new = "if (realPlayerInWorldChannel && urand(0, 99) < 3)"
+    assert gate_old in t, "random.cpp: worldOnly gate not found"
+    t = t.replace(gate_old, gate_new, 1)
+
+    cap_old = "std::thread([botGuid, prompt, isGuildComment, worldOnly]()"
+    cap_new = "std::thread([botGuid, prompt, isGuildComment, worldOnly, realPlayerInWorldChannel]()"
+    assert cap_old in t, "random.cpp: chatter thread capture not found"
+    t = t.replace(cap_old, cap_new, 1)
+
+    q_old = """                    // Generate response from LLM
+                    std::string response = QueryOllamaAPI(prompt);"""
+    q_new = """                    // Generate response from LLM at the lowest priority -
+                    // ambient chatter must never crowd out replies to players
+                    auto responseFuture = SubmitQuery(prompt, QUERY_PRIO_AMBIENT);
+                    if (!responseFuture.valid()) return;
+                    std::string response = responseFuture.get();"""
+    assert q_old in t, "random.cpp: QueryOllamaAPI call not found"
+    t = t.replace(q_old, q_new, 1)
+
+    dest_old = "if (wCh && botPtr->IsInChannel(wCh))"
+    dest_new = "if (realPlayerInWorldChannel && wCh && botPtr->IsInChannel(wCh))"
+    assert dest_old in t, "random.cpp: World destination check not found"
+    t = t.replace(dest_old, dest_new, 1)
+
+    save(name, t)
+    changed.append(name)
+
+# ---------------------------------------------------------------- sentiment.cpp
+name = "mod-ollama-chat_sentiment.cpp"
+t = load(name)
+old = """    // Query the LLM for sentiment analysis
+    std::string response = QueryOllamaAPI(prompt);"""
+new = """    // Query the LLM for sentiment analysis (lowest priority - this is
+    // bookkeeping and must never delay a reply to a real player)
+    std::string response = SubmitQuery(prompt, QUERY_PRIO_AMBIENT).get();"""
+if old in t:
+    save(name, t.replace(old, new))
+    changed.append(name)
+else:
+    assert "SubmitQuery(prompt, QUERY_PRIO_AMBIENT)" in t, "sentiment.cpp: call not found"
+
+if changed:
+    print("PATCHED: " + ", ".join(changed))
+else:
+    print("ALREADY APPLIED - nothing to do")
+PYEOF_PRIORITY
