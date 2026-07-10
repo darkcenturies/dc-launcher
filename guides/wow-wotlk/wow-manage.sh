@@ -2259,6 +2259,20 @@ Environment=OLLAMA_KEEP_ALIVE=-1
         fi
     fi
 
+    # Optional: intent bridge (natural-language movement orders for
+    # grouped bots). C++ patch on mod-ollama-chat — needs a rebuild.
+    echo ""
+    if ask_yes_no "Install the intent bridge (bots understand 'stick with me' / 'wait here')? Requires a worldserver rebuild."; then
+        if curl -fsSL "https://raw.githubusercontent.com/darkcenturies/dc-launcher/main/guides/wow-wotlk/patches/ollama-intent-bridge.sh?cb=$(date +%s)"             -o /tmp/dc-intent-bridge.sh 2>/dev/null; then
+            SERVER_DIR="$SERVER_DIR" bash /tmp/dc-intent-bridge.sh &&                 sed -i 's|^OllamaChat.EnableIntentBridge = 0|OllamaChat.EnableIntentBridge = 1|' "$conf_dir/mod_ollama_chat.conf" 2>/dev/null
+            grep -q 'EnableIntentBridge' "$conf_dir/mod_ollama_chat.conf" ||                 printf 'OllamaChat.EnableIntentBridge = 1
+' >> "$conf_dir/mod_ollama_chat.conf"
+            print_info "Patched. Rebuild the worldserver (module menu) to activate."
+        else
+            print_warning "Could not fetch the intent bridge patch."
+        fi
+    fi
+
     echo ""
     print_info "After the worldserver rebuild: whisper any bot to chat."
     print_info "Friend one (/friend <botname>) and chat regularly — sentiment"

@@ -51,6 +51,22 @@ jobs:
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
           echo "Version: $VER  (tag $TAG, prerelease=$PRERELEASE)"
 
+      - name: Collect changes since last release
+        id: changes
+        shell: bash
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="$PREV_TAG..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+          {
+            echo "list<<CHANGES_EOF"
+            git log --format='- %s' $RANGE | head -30
+            echo "CHANGES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Stamp version into source
         shell: bash
         run: |
@@ -79,6 +95,9 @@ jobs:
           generate_release_notes: false
           body: |
             ## ${{ steps.ver.outputs.version }}
+
+            ### Changes in this build
+            ${{ steps.changes.outputs.list }}
 
             **Download `DC-Launcher.exe` below and run it. That is all.**
 

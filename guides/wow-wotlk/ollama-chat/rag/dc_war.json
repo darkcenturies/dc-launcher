@@ -3,35 +3,139 @@
     "id": "dc_war_overview",
     "title": "Dark Centuries Territory War",
     "content": "This server runs the Dark Centuries territory war. Every zone of Azeroth belongs to a faction. Alliance and Horde each hold locked home territory that can never be taken. Nineteen contested warfront zones can be captured through PvP. Truly neutral zones take no part in the war: Moonglade, Stranglethorn Vale, Tanaris, Winterspring, Un'Goro Crater, Silithus and Deadwind Pass. Open the world map to see the front lines: solid color means owned, pulsing color means a contested zone leaning toward that faction.",
-    "keywords": ["war", "territory", "dark centuries", "zone control", "front", "frontline", "conflict", "map", "faction war", "world war"],
-    "tags": ["dark-centuries", "war", "server-features"]
+    "keywords": [
+      "war",
+      "territory",
+      "dark centuries",
+      "zone control",
+      "front",
+      "frontline",
+      "conflict",
+      "map",
+      "faction war",
+      "world war"
+    ],
+    "tags": [
+      "dark-centuries",
+      "war",
+      "server-features"
+    ]
   },
   {
     "id": "dc_war_capture",
     "title": "Capturing Zones",
     "content": "In contested warfront zones every PvP kill moves the zone's control meter one percent toward the killer's faction. A zone converts to a faction at seventy percent control and falls back to contested if control drops below that. Progress never decays on its own so every kill counts permanently. Twenty unanswered kills flips an even zone.",
-    "keywords": ["capture", "capturing", "take zone", "claim", "flip", "percent", "control", "kills", "meter", "how to capture", "take over"],
-    "tags": ["dark-centuries", "war", "pvp"]
+    "keywords": [
+      "capture",
+      "capturing",
+      "take zone",
+      "claim",
+      "flip",
+      "percent",
+      "control",
+      "kills",
+      "meter",
+      "how to capture",
+      "take over"
+    ],
+    "tags": [
+      "dark-centuries",
+      "war",
+      "pvp"
+    ]
   },
   {
     "id": "dc_war_rewards",
     "title": "War Rewards and Territory Buff",
     "content": "While inside a zone your faction controls, including home territory, you gain twenty-five percent bonus XP from kills and carry a visible territory buff called Essence of Wintergrasp. Holding zones directly speeds up your faction's leveling, so defending warfronts matters.",
-    "keywords": ["xp bonus", "bonus", "reward", "buff", "experience", "wintergrasp", "essence", "faster leveling", "territory buff"],
-    "tags": ["dark-centuries", "war", "rewards"]
+    "keywords": [
+      "xp bonus",
+      "bonus",
+      "reward",
+      "buff",
+      "experience",
+      "wintergrasp",
+      "essence",
+      "faster leveling",
+      "territory buff"
+    ],
+    "tags": [
+      "dark-centuries",
+      "war",
+      "rewards"
+    ]
   },
   {
     "id": "dc_war_zones",
     "title": "Contested Warfront Zones",
     "content": "The contested warfronts are Hillsbrad Foothills, Alterac Mountains, Arathi Highlands, The Hinterlands, Western Plaguelands, Eastern Plaguelands, Badlands, Searing Gorge, Burning Steppes, Swamp of Sorrows and Blasted Lands in the Eastern Kingdoms, plus Ashenvale, Stonetalon Mountains, Desolace, Thousand Needles, Feralas, Dustwallow Marsh, Azshara and Felwood in Kalimdor.",
-    "keywords": ["hillsbrad", "arathi", "alterac", "ashenvale", "stonetalon", "desolace", "feralas", "dustwallow", "azshara", "felwood", "plaguelands", "badlands", "hinterlands", "searing gorge", "burning steppes", "warfront", "contested zones", "which zones"],
-    "tags": ["dark-centuries", "war", "zones"]
+    "keywords": [
+      "hillsbrad",
+      "arathi",
+      "alterac",
+      "ashenvale",
+      "stonetalon",
+      "desolace",
+      "feralas",
+      "dustwallow",
+      "azshara",
+      "felwood",
+      "plaguelands",
+      "badlands",
+      "hinterlands",
+      "searing gorge",
+      "burning steppes",
+      "warfront",
+      "contested zones",
+      "which zones"
+    ],
+    "tags": [
+      "dark-centuries",
+      "war",
+      "zones"
+    ]
   },
   {
     "id": "dc_war_pvp",
     "title": "World PvP Rules",
     "content": "This is a PvP realm. Everyone is automatically flagged in contested territory and players of the opposing faction attack on sight in warfront zones. Killing enemy players there pushes your faction's control of that zone one percent per kill. Home territory is safe from capture but entering enemy home territory is dangerous.",
-    "keywords": ["pvp", "world pvp", "flagged", "attack", "enemy", "ganked", "fight", "realm type", "safe zones"],
-    "tags": ["dark-centuries", "war", "pvp"]
+    "keywords": [
+      "pvp",
+      "world pvp",
+      "flagged",
+      "attack",
+      "enemy",
+      "ganked",
+      "fight",
+      "realm type",
+      "safe zones"
+    ],
+    "tags": [
+      "dark-centuries",
+      "war",
+      "pvp"
+    ]
+  },
+  {
+    "id": "dc_companions_commands",
+    "title": "Directing Grouped Companions",
+    "content": "When grouped, companions understand natural movement requests from group members - things like stick with me, come along, wait here, hold on, or dont follow me. They interpret the meaning, act on it, and confirm casually. Other actions still use the standard playerbot commands.",
+    "keywords": [
+      "follow",
+      "stay",
+      "command",
+      "order",
+      "direct",
+      "control",
+      "wait",
+      "come",
+      "stick with me",
+      "listen"
+    ],
+    "tags": [
+      "dark-centuries",
+      "companions",
+      "grouping"
+    ]
   }
 ]
