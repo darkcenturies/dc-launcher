@@ -70,5 +70,13 @@ if '#include "PlayerbotAIConfig.h"' not in s:
     s = s.replace('#include "PlayerbotAI.h"',
                   '#include "PlayerbotAI.h"' + nl + '#include "PlayerbotAIConfig.h"', 1)
 open(hd, "w").write(s)
+# Channel replies: custom channels (World) have ID 0 and fell through
+# to /say delivery - route by name and source instead
+old = "if (channelId != 0 && !channelName.empty())"
+new = "if (!channelName.empty() && sourceLocal == SRC_GENERAL_LOCAL)"
+if old in s:
+    s = s.replace(old, new)
+    open(hd, "w").write(s)
+
 print("[OK] intent bridge patched (follow/stay) - rebuild the worldserver")
 PYEOF_INNER
