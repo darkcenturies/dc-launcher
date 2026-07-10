@@ -80,3 +80,87 @@ if old in s:
 
 print("[OK] intent bridge patched (follow/stay) - rebuild the worldserver")
 PYEOF_INNER
+
+# World ambient chatter: distant bots keep the World channel alive;
+# nearby bots gain World as an extra chatter destination
+export SERVER_DIR
+python3 - <<'PYEOF_WORLD'
+import os
+p = os.environ['SERVER_DIR'] + '/modules/mod-ollama-chat/src/mod-ollama-chat_random.cpp'
+s = open(p).read()
+if 'DC: distant bots occasionally chat' in s:
+    print('[OK] world chatter already patched')
+    raise SystemExit(0)
+
+# A. Loop gate: distant bots get a small chance to chat into World
+old = """        // Guild bots with real guild members online can bypass proximity requirement
+        bool allowWithoutProximity = guild && hasRealPlayerInGuild;
+        if (!allowWithoutProximity && !nearRealPlayer)
+            continue;"""
+new = """        // Guild bots with real guild members online can bypass proximity requirement
+        bool allowWithoutProximity = guild && hasRealPlayerInGuild;
+        // DC: distant bots occasionally chat into the World channel so the
+        // global channel stays alive even with no player nearby (small
+        // chance keeps volume sane across hundreds of bots)
+        bool worldOnly = false;
+        if (!allowWithoutProximity && !nearRealPlayer)
+        {
+            if (!realPlayers.empty() && urand(0, 99) < 3)
+                worldOnly = true;
+            else
+                continue;
+        }"""
+assert old in s, "gate"
+s = s.replace(old, new)
+
+# B. Thread capture
+old = "std::thread([botGuid, prompt, isGuildComment]() {"
+new = "std::thread([botGuid, prompt, isGuildComment, worldOnly]() {"
+assert old in s, "capture"
+s = s.replace(old, new)
+
+# C. Pre-validation: World lane is always a valid destination
+old = "            bool hasValidDestination = false;"
+new = "            bool hasValidDestination = worldOnly;"
+assert old in s, "prevalid"
+s = s.replace(old, new)
+
+# D. Channel options: add World (exclusive for the distant lane)
+old = """                        // If no channels are available, skip random chatter
+                        if (channels.empty())"""
+new = """                        // DC: World channel as a destination — exclusive for the
+                        // distant-bot lane, an extra option for nearby bots
+                        if (worldOnly)
+                            channels.clear();
+                        {
+                            ChannelMgr* wMgr = ChannelMgr::forTeam(botPtr->GetTeamId());
+                            Channel* wCh = wMgr ? wMgr->GetChannel("World", botPtr) : nullptr;
+                            if (wCh && botPtr->IsInChannel(wCh))
+                                channels.push_back("World");
+                        }
+
+                        // If no channels are available, skip random chatter
+                        if (channels.empty())"""
+assert old in s, "channels"
+s = s.replace(old, new)
+
+# E. Send branch for World
+old = "                        } else if (selectedChannel == \"General\") {"
+new = """                        } else if (selectedChannel == "World") {
+                            ChannelMgr* cMgr = ChannelMgr::forTeam(botPtr->GetTeamId());
+                            Channel* worldChannel = cMgr ? cMgr->GetChannel("World", botPtr) : nullptr;
+                            if (worldChannel && botPtr->IsInChannel(worldChannel))
+                            {
+                                if (g_DebugEnabled)
+                                    LOG_INFO("server.loading", "[Ollama Chat] Bot {} Random Chatter World: {}", botPtr->GetName(), response);
+                                worldChannel->Say(botPtr->GetGUID(), response, LANG_UNIVERSAL);
+                                ProcessBotChatMessage(botPtr, response, SRC_GENERAL_LOCAL, worldChannel);
+                            }
+                        } else if (selectedChannel == "General") {"""
+assert old in s, "send"
+s = s.replace(old, new)
+
+open(p, 'w').write(s)
+print("world chatter patched")
+
+PYEOF_WORLD
