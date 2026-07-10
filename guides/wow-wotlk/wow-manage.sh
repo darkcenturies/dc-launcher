@@ -2223,7 +2223,7 @@ Environment=OLLAMA_KEEP_ALIVE=-1
     local dist="$SERVER_DIR/modules/mod-ollama-chat/conf/mod_ollama_chat.conf.dist"
     mkdir -p "$conf_dir"
     if [ -f "$dist" ]; then
-        sed -e "s|^OllamaChat.Url = .*|OllamaChat.Url = http://host.docker.internal:11434/api/generate|"             -e "s|^OllamaChat.Model = .*|OllamaChat.Model = $model|"             -e "s|^OllamaChat.EnableWhisperReplies = 0|OllamaChat.EnableWhisperReplies = 1|"             -e "s|^OllamaChat.EnableRPPersonalities = 0|OllamaChat.EnableRPPersonalities = 1|"             -e "s|^OllamaChat.EnableSentimentTracking = 0|OllamaChat.EnableSentimentTracking = 1|"             -e "s|^OllamaChat.MaxConcurrentQueries = .*|OllamaChat.MaxConcurrentQueries = 4|"             -e "s|^OllamaChat.EnableTypingSimulation = 0|OllamaChat.EnableTypingSimulation = 1|"             -e "s|^OllamaChat.TypingSimulationDelayPerChar = .*|OllamaChat.TypingSimulationDelayPerChar = 30|"             -e "s|^OllamaChat.TypingSimulationBaseDelay = .*|OllamaChat.TypingSimulationBaseDelay = 500|"             -e "s|^OllamaChat.PlayerReplyChance.Channel = .*|OllamaChat.PlayerReplyChance.Channel = 95|"             -e "s|^OllamaChat.MaxConversationHistory = .*|OllamaChat.MaxConversationHistory = 3|"             "$dist" > "$conf_dir/mod_ollama_chat.conf"
+        sed -e "s|^OllamaChat.Url = .*|OllamaChat.Url = http://host.docker.internal:11434/api/generate|"             -e "s|^OllamaChat.Model = .*|OllamaChat.Model = $model|"             -e "s|^OllamaChat.EnableWhisperReplies = 0|OllamaChat.EnableWhisperReplies = 1|"             -e "s|^OllamaChat.EnableRPPersonalities = 0|OllamaChat.EnableRPPersonalities = 1|"             -e "s|^OllamaChat.EnableSentimentTracking = 0|OllamaChat.EnableSentimentTracking = 1|"             -e "s|^OllamaChat.MaxConcurrentQueries = .*|OllamaChat.MaxConcurrentQueries = 4|"             -e "s|^OllamaChat.EnableTypingSimulation = 0|OllamaChat.EnableTypingSimulation = 1|"             -e "s|^OllamaChat.TypingSimulationDelayPerChar = .*|OllamaChat.TypingSimulationDelayPerChar = 30|"             -e "s|^OllamaChat.TypingSimulationBaseDelay = .*|OllamaChat.TypingSimulationBaseDelay = 500|"             -e "s|^OllamaChat.PlayerReplyChance.Channel = .*|OllamaChat.PlayerReplyChance.Channel = 95|"             -e "s|^OllamaChat.MaxConversationHistory = .*|OllamaChat.MaxConversationHistory = 8|"             -e "s|^OllamaChat.EnableChatBotSnapshotTemplate = 0|OllamaChat.EnableChatBotSnapshotTemplate = 1|"             "$dist" > "$conf_dir/mod_ollama_chat.conf"
         print_success "Wrote $conf_dir/mod_ollama_chat.conf"
         # War knowledge for bot conversations (RAG): bots can explain the
         # Dark Centuries war accurately when players ask about it
@@ -2281,6 +2281,10 @@ Environment=OLLAMA_KEEP_ALIVE=-1
     local pb_conf="$conf_dir/playerbots.conf"
     if [ -f "$pb_conf" ]; then
         sed -i 's|^AiPlayerbot.EnableBroadcasts = 1|AiPlayerbot.EnableBroadcasts = 0|' "$pb_conf" &&             print_success "Disabled canned playerbot broadcasts (LLM chat only)"
+        # Plain talk must never run as bot commands ('u know any guilds?'
+        # triggered the USE command). Commands now need a # prefix; the
+        # intent bridge prepends it automatically.
+        sed -i 's|^AiPlayerbot.CommandPrefix = ""|AiPlayerbot.CommandPrefix = "#"|' "$pb_conf" &&             print_success "Bot commands now require # prefix (natural chat is safe)"
     fi
 
     print_info "After the worldserver rebuild: whisper any bot to chat."
