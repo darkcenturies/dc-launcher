@@ -2167,7 +2167,7 @@ configure_ollama_chat() {
 
     # 8B chats far more coherently; use it when a GPU can host it
     local model="llama3.2:3b"
-    command -v nvidia-smi >/dev/null 2>&1 && model="dolphin3:8b"
+    command -v nvidia-smi >/dev/null 2>&1 && model="mistral-nemo"
 
     # 1. Ollama installed?
     if ! command -v ollama >/dev/null 2>&1; then
@@ -2223,7 +2223,7 @@ Environment=OLLAMA_KEEP_ALIVE=-1
     local dist="$SERVER_DIR/modules/mod-ollama-chat/conf/mod_ollama_chat.conf.dist"
     mkdir -p "$conf_dir"
     if [ -f "$dist" ]; then
-        sed -e "s|^OllamaChat.Url = .*|OllamaChat.Url = http://host.docker.internal:11434/api/generate|"             -e "s|^OllamaChat.Model = .*|OllamaChat.Model = $model|"             -e "s|^OllamaChat.EnableWhisperReplies = 0|OllamaChat.EnableWhisperReplies = 1|"             -e "s|^OllamaChat.EnableRPPersonalities = 0|OllamaChat.EnableRPPersonalities = 1|"             -e "s|^OllamaChat.EnableSentimentTracking = 0|OllamaChat.EnableSentimentTracking = 1|"             -e "s|^OllamaChat.MaxConcurrentQueries = .*|OllamaChat.MaxConcurrentQueries = 4|"             -e "s|^OllamaChat.EnableTypingSimulation = 0|OllamaChat.EnableTypingSimulation = 1|"             -e "s|^OllamaChat.TypingSimulationDelayPerChar = .*|OllamaChat.TypingSimulationDelayPerChar = 30|"             -e "s|^OllamaChat.TypingSimulationBaseDelay = .*|OllamaChat.TypingSimulationBaseDelay = 500|"             "$dist" > "$conf_dir/mod_ollama_chat.conf"
+        sed -e "s|^OllamaChat.Url = .*|OllamaChat.Url = http://host.docker.internal:11434/api/generate|"             -e "s|^OllamaChat.Model = .*|OllamaChat.Model = $model|"             -e "s|^OllamaChat.EnableWhisperReplies = 0|OllamaChat.EnableWhisperReplies = 1|"             -e "s|^OllamaChat.EnableRPPersonalities = 0|OllamaChat.EnableRPPersonalities = 1|"             -e "s|^OllamaChat.EnableSentimentTracking = 0|OllamaChat.EnableSentimentTracking = 1|"             -e "s|^OllamaChat.MaxConcurrentQueries = .*|OllamaChat.MaxConcurrentQueries = 4|"             -e "s|^OllamaChat.EnableTypingSimulation = 0|OllamaChat.EnableTypingSimulation = 1|"             -e "s|^OllamaChat.TypingSimulationDelayPerChar = .*|OllamaChat.TypingSimulationDelayPerChar = 30|"             -e "s|^OllamaChat.TypingSimulationBaseDelay = .*|OllamaChat.TypingSimulationBaseDelay = 500|"             -e "s|^OllamaChat.PlayerReplyChance.Channel = .*|OllamaChat.PlayerReplyChance.Channel = 95|"             -e "s|^OllamaChat.MaxConversationHistory = .*|OllamaChat.MaxConversationHistory = 3|"             "$dist" > "$conf_dir/mod_ollama_chat.conf"
         print_success "Wrote $conf_dir/mod_ollama_chat.conf"
         # War knowledge for bot conversations (RAG): bots can explain the
         # Dark Centuries war accurately when players ask about it
@@ -2275,6 +2275,14 @@ Environment=OLLAMA_KEEP_ALIVE=-1
     fi
 
     echo ""
+    # Canned playerbot broadcasts bypass the LLM and spout nonsense
+    # ("anyone got a map for X") — ambient chat should come from the
+    # grounded LLM pipeline only
+    local pb_conf="$conf_dir/playerbots.conf"
+    if [ -f "$pb_conf" ]; then
+        sed -i 's|^AiPlayerbot.EnableBroadcasts = 1|AiPlayerbot.EnableBroadcasts = 0|' "$pb_conf" &&             print_success "Disabled canned playerbot broadcasts (LLM chat only)"
+    fi
+
     print_info "After the worldserver rebuild: whisper any bot to chat."
     print_info "Friend one (/friend <botname>) and chat regularly — sentiment"
     print_info "tracking means it remembers how it feels about you."
